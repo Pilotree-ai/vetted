@@ -1,0 +1,18 @@
+{
+  "name": "pilotree",
+  "owner": {
+    "name": "Pilotree",
+    "url": "https://pilotree.ai"
+  },
+  "metadata": {
+    "description": "Claude Code plugins from Pilotree."
+  },
+  "plugins": [
+    {
+      "name": "vetted",
+      "source": "./plugins/vetted",
+      "description": "Vetted: one sentence in, an approved, personalised outbound campaign out. Apollo search, website screening with evidence, enrichment, Slack approval, Apollo sequence, tracking.",
+      "version": "0.1.0"
+    }
+  ]
+}

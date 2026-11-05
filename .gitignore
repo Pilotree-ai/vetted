@@ -1,0 +1,3 @@
+# Per-user campaign data and config. Never commit: contains mailboxes, Slack IDs and prospect data.
+outbound/
+.DS_Store
