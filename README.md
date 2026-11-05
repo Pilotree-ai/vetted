@@ -101,7 +101,7 @@ Connect **Apollo** and **Slack** once in claude.ai Settings > Connectors. They'r
 ## Install
 
 ```
-/plugin marketplace add pilotree/vetted
+/plugin marketplace add Pilotree-ai/vetted
 /plugin install vetted@pilotree
 ```
 

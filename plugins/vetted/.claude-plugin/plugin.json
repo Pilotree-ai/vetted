@@ -14,6 +14,7 @@
     "sales",
     "cold-email"
   ],
-  "homepage": "https://github.com/pilotree/vetted",
-  "repository": "https://github.com/pilotree/vetted"
+  "license": "MIT",
+  "homepage": "https://github.com/Pilotree-ai/vetted",
+  "repository": "https://github.com/Pilotree-ai/vetted"
 }
