@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img src="assets/logo.svg" alt="Vetted" height="56">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-endorsed-dark.svg">
+    <img src="assets/logo-endorsed.svg" alt="Vetted by Pilotree" height="72">
   </picture>
 </p>
 
@@ -227,4 +227,11 @@ plugins/vetted/skills/outbound-leads/
 
 ---
 
-Built by [Pilotree](https://pilotree.ai).
+## More from Pilotree
+
+- **[Inboxed](https://github.com/Pilotree-ai/inboxed):** find out if your email lands in the inbox, and get the exact fix. Run it on your sending domain before your first Vetted batch.
+- **[Recon](https://github.com/Pilotree-ai/recon):** a weekly digest of what your competitors actually changed.
+- **[Pinpoint](https://github.com/Pilotree-ai/pinpoint):** bug reports pinned to the exact element.
+- **[Squawk](https://pilotree.ai/squawk):** find out if AI recommends you.
+
+Built by [Pilotree](https://pilotree.ai). MIT licensed.
