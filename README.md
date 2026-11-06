@@ -139,6 +139,23 @@ This is saved once and never asked again. Say "change my outbound config" at any
 
 ---
 
+## Weekly loop
+
+Run the same campaign every week without anyone at the keyboard. Say "set up the weekly loop" and confirm the brief, the weekly size and a weekly credit cap once. After that it runs on its own, in the market's time zone:
+
+| When (market time) | What happens |
+|---|---|
+| Saturday 09:00 | Finds, screens, enriches (within the cap) and writes the next batch, then posts it to Slack with a **Go for Monday?** message. Nothing is loaded |
+| Sunday 18:00 | Reminds the channel about anything still without a ✅ |
+| Monday 07:00 | If Go has a ✅, loads the ticked groups into the campaign's sequence, checks every personal email was saved, and starts sending |
+| Weekdays 10:00 | Daily report, plus any groups ticked late |
+
+No emails go out at the weekend. No ✅ on Go means nothing is sent, and it checks again each weekday. Reply "pause" or "resume" in the Go thread to stop or restart it. It also pauses itself and says why if the market runs dry, credits run low or bounces spike.
+
+The loop runs as a scheduled Claude cloud routine, so your computer can be off. Scheduled runs only see files committed to a GitHub repo, so keep your `outbound/` folder in a **separate private repo** (a workspace repo), never in this one. The workspace holds a copy of the skill in `.claude/skills/` and the routine commits each run's results back to it.
+
+---
+
 ## Things you can say
 
 ```
@@ -151,6 +168,8 @@ This is saved once and never asked again. Say "change my outbound config" at any
 > how are my outbound sequences doing?
 > add a second sender
 > set up the daily outbound report
+> set up the weekly loop
+> pause the weekly loop
 ```
 
 ---
@@ -217,6 +236,7 @@ plugins/vetted/skills/outbound-leads/
     lessons-learned.md  what went wrong before, and the fix
     multi-sender.md     running several senders on one Apollo workspace
     dashboard.md        the live campaign dashboard: when it's created and what each step writes
+    loop.md             the weekly loop: schedule, standing approvals, each run's steps
   templates/
     config.template.md
     campaign-brief.md

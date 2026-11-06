@@ -1,6 +1,6 @@
 ---
 name: outbound-leads
-description: Run a full cold-outbound lead campaign from one plain sentence using Apollo.io and Slack. Turns a description like "UK marketing agencies, up to 20 staff, partner-led, founder as contact, 40 leads, offer is a free site audit" into a confirmed campaign brief, then finds people in Apollo, screens each company's own website against the brief, enriches only qualifiers, writes a personal opener per person, gets every email approved in Slack, loads approved contacts into an Apollo sequence and tracks results. Use this skill whenever the user wants to find leads, build a prospect list, start an outreach or cold email batch, run a new outbound campaign, load approved emails into Apollo, or check how an outbound batch is doing, even if they do not mention Apollo, Slack or the word "campaign".
+description: Run a full cold-outbound lead campaign from one plain sentence using Apollo.io and Slack. Turns a description like "UK marketing agencies, up to 20 staff, partner-led, founder as contact, 40 leads, offer is a free site audit" into a confirmed campaign brief, then finds people in Apollo, screens each company's own website against the brief, enriches only qualifiers, writes a personal opener per person, gets every email approved in Slack, loads approved contacts into an Apollo sequence and tracks results. Use this skill whenever the user wants to find leads, build a prospect list, start an outreach or cold email batch, run a new outbound campaign, load approved emails into Apollo, check how an outbound batch is doing, or run outbound on a weekly loop or schedule, even if they do not mention Apollo, Slack or the word "campaign".
 ---
 
 # Outbound leads
@@ -40,9 +40,13 @@ Also read `references/lessons-learned.md` once at the start of a run. It is shor
 
 The run can be resumed. Each step writes its output to the campaign folder, so if the user comes back later ("carry on with the agency batch", "check the Slack ticks"), read the brief and the latest working file and pick up from the next step. Do not redo steps that cost credits.
 
+## Weekly loop
+
+The same campaign can run every week on a schedule: prep at the weekend, approval in Slack, sending from Monday, then again the next weekend. When the user asks to set up, change, pause or check the loop, or when a scheduled run starts, read `references/loop.md` and follow it. In a scheduled run there is nobody to ask, so the gates work as that file describes.
+
 ## The four gates
 
-Pause and wait for the user at each one. Do not treat silence, a vague "go on" given earlier, or approval of a previous batch as approval of this one.
+Pause and wait for the user at each one. Do not treat silence, a vague "go on" given earlier, or approval of a previous batch as approval of this one. The only exception is the weekly loop's standing approvals, exactly as `references/loop.md` defines them.
 
 1. **Brief.** Read back the full brief (audience, rules, offer, sender, batch size, exclusions) and wait for a clear yes. A vague sentence sent after the wrong audience wastes credits and burns goodwill with real people.
 2. **Credits.** Before enriching, state the number of people and the maximum credit cost, plus the current balance. Use the confirmation wording Apollo's tool asks for.

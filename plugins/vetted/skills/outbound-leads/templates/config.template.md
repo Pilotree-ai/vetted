@@ -73,6 +73,19 @@ senders:
 
 - dashboard: on                    # a private claude.ai page per campaign, updated after every step. "off" to skip
 
+## Weekly loop
+
+Run one standing campaign every week on a schedule. Set up by saying "set up the weekly loop" (see `references/loop.md`).
+
+- loop: off                        # off | on | paused
+- loop_campaign: ""                # slug of the standing campaign
+- market_timezone: Europe/London   # the market's time zone, not yours. All loop times use it
+- weekly_leads: 60                 # approved-ready emails to prepare each week
+- weekly_credit_cap: 90            # most credits one week may spend without asking
+- min_credit_balance: 200          # pause instead of enriching below this balance
+- no_go_by_monday: hold            # hold (re-check each weekday) | skip (drop the week)
+- max_bounce_rate: 0.05            # pause the loop if last week bounced above this
+
 ## Holds
 
 Companies or people not to contact until something is checked. The search step excludes them.

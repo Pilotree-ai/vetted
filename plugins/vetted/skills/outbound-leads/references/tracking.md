@@ -49,6 +49,8 @@ If the batch's brief has reply handling, add one line per new reply with the sug
 
 ## Daily routine
 
+If the weekly loop is on (`references/loop.md`), its `daily` phase already runs this check every weekday. Don't schedule a second routine for it.
+
 Offer to schedule this as a weekday routine at 10:00:
 
 - Claude Code: `/schedule`, with a prompt like "Use the outbound-leads skill to run the daily status check for every live batch and post the summary to Slack."

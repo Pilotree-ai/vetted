@@ -127,6 +127,10 @@ At the end of each step, one or more batches: the step's people documents, then 
 
 The daily routine updates the dashboard too, if `00-dashboard.json` exists and the routine has the `ArtifactData` tool. If not, it skips it. The ledger and Slack summary are what matter there.
 
+## In the weekly loop
+
+One dashboard per standing campaign, kept for every week. Add `"week": "<YYYY-Www>"` to each person, set `run/summary.label` to "<batch label>, week <label>" at each prep, and reset the counts at prep so they describe the current week. People from earlier weeks stay as they are, with their latest status.
+
 ## Privacy
 
 The dashboard holds prospects' names, work emails and the emails written to them. It is private when created. If the user wants to share it, suggest sharing it inside their organisation only (for example with the approvers), never by public link. Don't share it on the user's behalf.
