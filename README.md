@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo.svg" alt="Vetted" height="56">
+  </picture>
+</p>
+
 # Vetted
 
 **One sentence in. An approved, personalised outbound campaign out.**
@@ -54,6 +61,8 @@ Vetted does the slow parts (reading websites, judging fit, writing openers) in p
 
 The ◆ steps are **gates**. The skill stops and waits for you at each one. Nothing is sent without a person approving it in Slack.
 
+As soon as you confirm the brief, the skill gives you a link to a **live dashboard** for the campaign. It updates after every step.
+
 ---
 
 ## What makes it different
@@ -80,6 +89,8 @@ The ◆ steps are **gates**. The skill stops and waits for you at each one. Noth
 **It remembers who you've contacted.** A shared record of every company and person ever enrolled, across every sender and batch, means nobody gets the same cold email twice.
 
 **It works for a team.** Several senders can share one Apollo workspace. The skill asks "which sender?" each run and keeps sequence names, sign-offs and records separate.
+
+**You can watch it happen.** Each campaign gets its own private page on claude.ai that fills in as the run goes: the current step, what's waiting on you, the totals at each step, and every person with their screening evidence, email and status. It only shows what's happening. Approvals still happen in Slack.
 
 **You can stop and pick up later.** Each step saves its output. Come back tomorrow and say "check the Slack approvals for the agency batch", and it carries on from there without repeating anything that costs credits.
 
@@ -162,6 +173,8 @@ outbound/
       04-research.json openers, subjects and full emails
       05-slack.json    approval messages and results
       06-load.json     Apollo sequence and what was saved
+      dashboard.html   the live dashboard page
+      00-dashboard.json  its link
 ```
 
 Keep `outbound/` out of git. It contains mailbox addresses, Slack IDs and prospect data. This repo's `.gitignore` already excludes it.
@@ -183,6 +196,7 @@ Keep `outbound/` out of git. It contains mailbox addresses, Slack IDs and prospe
 - **Strict criteria drop a lot of companies.** To end up with 40 qualified leads, expect to screen 150 or more. The skill sizes the search for you and tells you if it's falling short, instead of quietly loosening your rules.
 - **Volume matters.** Sending 60 or more emails on day one from a new mailbox puts your whole domain at risk. The skill warns you and keeps to the daily cap. A second mailbox lets Apollo rotate sends.
 - **Built for Claude Code.** It relies on parallel agents and local files.
+- **The dashboard holds prospect data.** It's private when created. Share it only inside your organisation, never by public link. To turn it off, set `dashboard: off` in `outbound/config.md`.
 
 ---
 
@@ -202,9 +216,11 @@ plugins/vetted/skills/outbound-leads/
     tracking.md         record of who's been emailed, canvas and daily report
     lessons-learned.md  what went wrong before, and the fix
     multi-sender.md     running several senders on one Apollo workspace
+    dashboard.md        the live campaign dashboard: when it's created and what each step writes
   templates/
     config.template.md
     campaign-brief.md
+    campaign-dashboard.html  the dashboard page, copied into each campaign folder
     example-pilot-offer.md   the shape of an offer file: early customers on special terms
     example-free-audit.md    the shape of an offer file: a free audit, no call needed
 ```

@@ -1,0 +1,535 @@
+<title>__CAMPAIGN_TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single-column run console. Header and stage track on top, the funnel strip under it,
+   then the people ledger (expandable rows) beside a narrow brief + activity column on wide screens. */
+:root {
+  --paper: #F6F7F8;
+  --surface: #FFFFFF;
+  --ink: #111214;
+  --muted: #5D636C;
+  --line: #E2E5E9;
+  --ok: #1D7348;   --ok-soft: #E6F3EC;
+  --warn: #9A5A06; --warn-soft: #FBF0DF;
+  --bad: #B3261E;  --bad-soft: #FBE9E7;
+  --info: #2C56A8; --info-soft: #E8EEFA;
+  --font-ui: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-data: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0E0F11; --surface: #16181B; --ink: #F1F2F4; --muted: #9AA0A8; --line: #2A2E33;
+    --ok: #57C48D; --ok-soft: #14271D; --warn: #E3A548; --warn-soft: #2B2112;
+    --bad: #F0786B; --bad-soft: #2E1715; --info: #86A9F0; --info-soft: #172238;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0E0F11; --surface: #16181B; --ink: #F1F2F4; --muted: #9AA0A8; --line: #2A2E33;
+  --ok: #57C48D; --ok-soft: #14271D; --warn: #E3A548; --warn-soft: #2B2112;
+  --bad: #F0786B; --bad-soft: #2E1715; --info: #86A9F0; --info-soft: #172238;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 600; }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; border-radius: 4px; }
+
+/* Header */
+header { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.brand svg { width: 18px; height: 18px; display: block; }
+.brand span { font-weight: 600; font-size: 13px; letter-spacing: -.01em; }
+h1 { font-size: 26px; letter-spacing: -.02em; line-height: 1.2; }
+.meta { color: var(--muted); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.meta b { color: var(--ink); font-weight: 500; }
+.status { display: grid; justify-items: end; gap: 6px; }
+.updated { color: var(--muted); font-size: 12px; }
+
+/* Pills */
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; background: var(--paper); color: var(--muted); border: 1px solid var(--line); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.t-ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.t-warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.t-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.t-info { background: var(--info-soft); color: var(--info); border-color: transparent; }
+.pill.big { font-size: 13px; padding: 4px 12px; }
+
+/* Waiting strip */
+.waiting { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r); background: var(--warn-soft); color: var(--ink); }
+.waiting .diamond { color: var(--warn); font-size: 13px; line-height: 1.5; }
+.waiting b { font-weight: 600; }
+
+/* Stage track */
+.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.track li { display: grid; gap: 6px; font-size: 12px; color: var(--muted); min-width: 0; }
+.track .bar { height: 4px; border-radius: 2px; background: var(--line); }
+.track li.done .bar { background: var(--ink); }
+.track li.current .bar { background: linear-gradient(90deg, var(--ink) 50%, var(--line) 50%); }
+.track li.current { color: var(--ink); font-weight: 600; }
+.track li.done { color: var(--ink); }
+.track .gate { color: var(--muted); font-weight: 400; }
+
+/* Funnel */
+.funnel { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.funnel > div { padding: 14px 16px; display: grid; gap: 2px; border-left: 1px solid var(--line); min-width: 0; }
+.funnel > div:first-child { border-left: 0; }
+.funnel .v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+.funnel .k { font-size: 12px; color: var(--muted); }
+.funnel .s { font-size: 11.5px; color: var(--muted); font-family: var(--font-data); }
+
+/* Main grid */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 920px) { .main { grid-template-columns: minmax(0, 1fr); } .track { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12px; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.panel-h { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.panel-h h2 { font-size: 15px; }
+.side { display: grid; gap: 20px; min-width: 0; }
+
+/* Toolbar */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.chip .num { margin-left: 4px; opacity: .8; }
+.search { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 200px; max-width: 100%; }
+
+/* People rows */
+.people { display: grid; }
+.person { border-bottom: 1px solid var(--line); }
+.person:last-child { border-bottom: 0; }
+.person > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 1.4fr) auto; gap: 4px 16px; align-items: center; padding: 11px 16px; }
+.person > summary::-webkit-details-marker { display: none; }
+.person > summary:hover { background: var(--paper); }
+.person[open] > summary { background: var(--paper); }
+.who b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.who span, .org span, .mail span { display: block; color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.org b { font-weight: 400; display: block; overflow-wrap: anywhere; }
+.mail { font-family: var(--font-data); font-size: 12.5px; overflow-wrap: anywhere; }
+.mail span { font-family: var(--font-ui); }
+@media (max-width: 640px) {
+  .person > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .person .org, .person .mail { grid-column: 1 / -1; }
+  .person .org { order: 3; } .person .mail { order: 4; }
+}
+.detail { padding: 4px 16px 18px; display: grid; gap: 16px; background: var(--paper); }
+.detail h3 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rules li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; }
+.rules .ev { color: var(--muted); overflow-wrap: anywhere; }
+.rules .ev a { color: var(--muted); }
+.email { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; max-width: 68ch; }
+.email .subj { font-weight: 600; margin-bottom: 8px; overflow-wrap: anywhere; }
+.email .body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font: inherit; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Side panels */
+.brief { padding: 14px 16px; display: grid; gap: 14px; }
+.brief p { margin: 0; }
+.brief .rule b { display: block; font-weight: 500; }
+.brief .rule p { color: var(--muted); font-size: 13px; }
+.feed { list-style: none; margin: 0; padding: 6px 16px 14px; display: grid; }
+.feed li { padding: 8px 0; border-bottom: 1px solid var(--line); display: grid; gap: 2px; }
+.feed li:last-child { border-bottom: 0; }
+.feed time { color: var(--muted); font-size: 11.5px; font-family: var(--font-data); }
+
+.empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+.empty b { color: var(--ink); font-weight: 500; display: block; margin-bottom: 4px; }
+.note { color: var(--muted); font-size: 12.5px; }
+footer { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 14px; }
+@media (prefers-reduced-motion: no-preference) { .person > summary, .chip { transition: background-color .12s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="var(--ink)"/><path d="M19 28.5 L29.5 44 L45.5 19.5" fill="none" stroke="var(--surface)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Vetted</span>
+      </div>
+      <h1 id="label">Outbound campaign</h1>
+      <div class="meta" id="meta"><span>Waiting for campaign data</span></div>
+    </div>
+    <div class="status">
+      <span class="pill big" id="stage-pill">Connecting</span>
+      <span class="updated" id="updated"></span>
+    </div>
+  </header>
+
+  <div class="waiting" id="waiting" hidden><span class="diamond" aria-hidden="true">◆</span><div><b>Waiting for you.</b> <span id="waiting-text"></span></div></div>
+
+  <ol class="track" id="track" aria-label="Campaign steps"></ol>
+
+  <section class="funnel" id="funnel" aria-label="Totals"></section>
+
+  <div class="main">
+    <section class="panel" aria-labelledby="people-h">
+      <div class="panel-h">
+        <h2 id="people-h">People</h2>
+        <input class="search" id="q" type="search" placeholder="Search name, company, email" aria-label="Search people">
+      </div>
+      <div class="panel-h"><div class="chips" id="chips" role="toolbar" aria-label="Filter people"></div></div>
+      <div class="people" id="people">
+        <div class="empty"><b>No people yet</b>Contacts appear here once the Apollo search has run.</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel" aria-labelledby="brief-h">
+        <div class="panel-h"><h2 id="brief-h">Brief</h2><span class="note" id="target"></span></div>
+        <div class="brief" id="brief"><p class="note">The confirmed brief shows here.</p></div>
+      </section>
+      <section class="panel" aria-labelledby="feed-h">
+        <div class="panel-h"><h2 id="feed-h">Activity</h2></div>
+        <ul class="feed" id="feed"><li><span class="note">Each step logs here as it finishes.</span></li></ul>
+      </section>
+    </aside>
+  </div>
+
+  <footer>
+    <span id="foot-approval">Read-only. Every email is approved in Slack before anything is loaded into Apollo.</span>
+    <span id="foot-source"></span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STEPS = [
+    ["brief", "Brief", true], ["search", "Search", false], ["screen", "Screen", false], ["enrich", "Enrich", true],
+    ["write", "Write", false], ["approve", "Approve", true], ["load", "Load", true], ["live", "Live", false]
+  ];
+  var STAGE_LABEL = { brief: "Brief", search: "Searching Apollo", screen: "Screening websites", enrich: "Enriching emails",
+    write: "Writing openers", approve: "Approval in Slack", load: "Loading into Apollo", live: "Live", done: "Finished" };
+
+  // Person stages: label, tone, sort rank (lower sorts first), filter group.
+  var PS = {
+    replied:          ["Replied", "t-ok", 0, "sequence"],
+    posted:           ["In Slack review", "t-warn", 1, "emails"],
+    unclear:          ["Unclear", "t-warn", 2, "review"],
+    approved:         ["Approved", "t-ok", 3, "emails"],
+    ready:            ["Email written", "t-info", 4, "emails"],
+    enrolled:         ["In sequence", "t-ok", 5, "sequence"],
+    sent:             ["Sent", "t-info", 6, "sequence"],
+    enriched:         ["Email found", "t-info", 7, "active"],
+    qualify:          ["Qualified", "t-ok", 8, "active"],
+    found:            ["Found", "", 9, "active"],
+    bounced:          ["Bounced", "t-bad", 10, "sequence"],
+    finished:         ["Finished", "", 11, "sequence"],
+    opted_out:        ["Opted out", "", 12, "sequence"],
+    not_personalised: ["Removed, not personalised", "t-bad", 20, "dropped"],
+    removed:          ["Removed in Slack", "", 21, "dropped"],
+    write_drop:       ["Dropped at research", "", 22, "dropped"],
+    no_email:         ["No usable email", "", 23, "dropped"],
+    drop:             ["Dropped at screen", "", 24, "dropped"],
+    excluded:         ["Excluded", "", 25, "dropped"]
+  };
+  var FILTERS = [
+    ["all", "All"], ["review", "Needs review"], ["emails", "Emails"], ["sequence", "In sequence"],
+    ["replied", "Replied"], ["dropped", "Dropped"]
+  ];
+  var OUTCOME = { qualify: ["Qualify", "t-ok"], unclear: ["Unclear", "t-warn"], drop: ["Drop", "t-bad"] };
+
+  var state = { summary: null, activity: null, people: [], filter: "all", q: "", open: new Set(), loaded: false };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null && text !== "") n.textContent = String(text);
+    return n;
+  }
+  function str(v) { return typeof v === "string" ? v : (typeof v === "number" ? String(v) : ""); }
+  function num(v) { return typeof v === "number" && isFinite(v) ? v : null; }
+  function fmt(v) { var n = num(v); return n === null ? "–" : n.toLocaleString("en-GB"); }
+  function safeUrl(u) {
+    u = str(u).trim();
+    if (!u) return "";
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    try { var p = new URL(u); return (p.protocol === "https:" || p.protocol === "http:") ? p.href : ""; } catch (e) { return ""; }
+  }
+  function link(text, url) {
+    var href = safeUrl(url);
+    if (!href) return el("span", "", text);
+    var a = el("a", "", text || href);
+    a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer";
+    return a;
+  }
+  function pill(label, tone) { return el("span", "pill " + (tone || ""), label); }
+  function ago(iso) {
+    var t = Date.parse(str(iso));
+    if (!t) return "";
+    var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (s < 60) return "just now";
+    var m = Math.round(s / 60); if (m < 60) return m + " min ago";
+    var h = Math.round(m / 60); if (h < 24) return h + " h ago";
+    return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  }
+  function clock(iso) {
+    var t = Date.parse(str(iso));
+    if (!t) return "";
+    var d = new Date(t);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /* ---------- Header, track, funnel, brief ---------- */
+  function renderSummary() {
+    var s = state.summary;
+    if (!s) return;
+    if (str(s.label)) $("label").textContent = s.label;
+    var meta = $("meta"); meta.textContent = "";
+    function m(k, v) { if (!v) return; var sp = el("span", "", k + " "); sp.appendChild(el("b", "", v)); meta.appendChild(sp); }
+    m("Sender", [str(s.sender_name), str(s.sender_mailbox)].filter(Boolean).join(" · "));
+    if (s.sequence && str(s.sequence.name)) m("Sequence", s.sequence.name + (s.sequence.active ? " (on)" : " (off)"));
+    if (s.slack && str(s.slack.channel_name)) {
+      var sp = el("span", "", "Approvals ");
+      sp.appendChild(s.slack.intro_url ? link("#" + s.slack.channel_name, s.slack.intro_url) : el("b", "", "#" + s.slack.channel_name));
+      meta.appendChild(sp);
+    }
+    if (!meta.childNodes.length) meta.appendChild(el("span", "", "Campaign set up"));
+
+    var stage = str(s.stage) || "brief";
+    var sp2 = $("stage-pill");
+    sp2.textContent = STAGE_LABEL[stage] || stage;
+    sp2.className = "pill big " + (stage === "live" || stage === "done" ? "t-ok" : (str(s.waiting_on) ? "t-warn" : "t-info"));
+
+    var w = str(s.waiting_on);
+    $("waiting").hidden = !w;
+    $("waiting-text").textContent = w;
+
+    var track = $("track"); track.textContent = "";
+    var idx = STEPS.findIndex(function (x) { return x[0] === stage; });
+    if (stage === "done") idx = STEPS.length;
+    STEPS.forEach(function (st, i) {
+      var li = el("li", i < idx ? "done" : (i === idx ? "current" : ""));
+      li.appendChild(el("div", "bar"));
+      var lab = el("span", "", (i + 1) + " " + st[1]);
+      if (st[2]) { var g = el("span", "gate", " ◆"); g.title = "You confirm this step"; lab.appendChild(g); }
+      li.appendChild(lab);
+      if (i === idx) li.setAttribute("aria-current", "step");
+      track.appendChild(li);
+    });
+
+    var c = s.counts || {}, cr = s.credits || {};
+    var cells = [
+      ["Pulled", c.pulled, num(c.excluded) ? fmt(c.excluded) + " excluded" : ""],
+      ["Companies screened", c.screened_companies, [num(c.qualify) !== null ? fmt(c.qualify) + " fit" : "", num(c.unclear) ? fmt(c.unclear) + " unclear" : "", num(c.drop) !== null ? fmt(c.drop) + " drop" : ""].filter(Boolean).join(" · ")],
+      ["Emails found", c.emails_found, num(c.enriched) !== null ? "of " + fmt(c.enriched) + " enriched" : ""],
+      ["Written", c.written, num(c.write_dropped) ? fmt(c.write_dropped) + " dropped" : ""],
+      ["Approved", c.approved, num(c.removed) ? fmt(c.removed) + " removed" : (num(c.posted) !== null ? "of " + fmt(c.posted) + " posted" : "")],
+      ["In sequence", c.enrolled, num(c.sent) !== null ? fmt(c.sent) + " sent" : ""],
+      ["Replied", c.replied, num(c.bounced) ? fmt(c.bounced) + " bounced" : ""],
+      ["Credits used", cr.used, num(cr.balance) !== null ? fmt(cr.balance) + " left" : (num(cr.estimate) !== null ? "up to " + fmt(cr.estimate) : "")]
+    ];
+    var f = $("funnel"); f.textContent = "";
+    cells.forEach(function (x) {
+      var d = el("div");
+      d.appendChild(el("span", "k", x[0]));
+      d.appendChild(el("span", "v", fmt(x[1])));
+      var sub = el("span", "s", x[2] || " ");
+      d.appendChild(sub);
+      f.appendChild(d);
+    });
+
+    var b = $("brief"); b.textContent = "";
+    if (str(s.audience)) { var a = el("div"); a.appendChild(el("div", "eyebrow", "Audience")); a.appendChild(el("p", "", s.audience)); b.appendChild(a); }
+    if (str(s.offer)) { var o = el("div"); o.appendChild(el("div", "eyebrow", "Offer")); o.appendChild(el("p", "", s.offer)); b.appendChild(o); }
+    var rules = Array.isArray(s.rules) ? s.rules : [];
+    if (rules.length) {
+      var r = el("div"); r.style.display = "grid"; r.style.gap = "10px";
+      r.appendChild(el("div", "eyebrow", "Rules"));
+      rules.forEach(function (ru) {
+        if (!ru || typeof ru !== "object") return;
+        var d = el("div", "rule");
+        d.appendChild(el("b", "", str(ru.name)));
+        if (str(ru.qualify)) d.appendChild(el("p", "", "Qualify: " + ru.qualify));
+        if (str(ru.drop)) d.appendChild(el("p", "", "Drop: " + ru.drop));
+        if (str(ru.unclear)) d.appendChild(el("p", "", "Unclear: " + ru.unclear));
+        r.appendChild(d);
+      });
+      b.appendChild(r);
+    }
+    if (!b.childNodes.length) b.appendChild(el("p", "note", "The confirmed brief shows here."));
+    $("target").textContent = num(s.target) !== null ? "Target " + fmt(s.target) + " leads" : "";
+    if (s.slack && str(s.slack.channel_name)) $("foot-approval").textContent = "Read-only. Every email is approved in #" + s.slack.channel_name + " before anything is loaded into Apollo.";
+    $("foot-source").textContent = str(s.slug) ? "Working files: outbound/campaigns/" + s.slug + "/" : "";
+    tick();
+  }
+  function tick() { $("updated").textContent = state.summary && state.summary.updated_at ? "Updated " + ago(state.summary.updated_at) : ""; }
+
+  function renderActivity() {
+    var items = state.activity && Array.isArray(state.activity.items) ? state.activity.items : [];
+    var f = $("feed"); f.textContent = "";
+    if (!items.length) { var li0 = el("li"); li0.appendChild(el("span", "note", "Each step logs here as it finishes.")); f.appendChild(li0); return; }
+    items.slice(0, 30).forEach(function (it) {
+      if (!it || typeof it !== "object") return;
+      var li = el("li");
+      var t = el("time", "", clock(it.at)); if (str(it.at)) t.dateTime = it.at;
+      li.appendChild(t); li.appendChild(el("span", "", str(it.text)));
+      f.appendChild(li);
+    });
+  }
+
+  /* ---------- People ---------- */
+  function group(p) {
+    var st = PS[p.stage];
+    if (p.stage === "replied") return ["sequence", "replied"];
+    if (p.stage === "unclear" || p.stage === "posted") return [st ? st[3] : "", "review"];
+    return [st ? st[3] : ""];
+  }
+  function matches(p) {
+    if (state.filter !== "all" && group(p).indexOf(state.filter) === -1) return false;
+    if (!state.q) return true;
+    var hay = [p.first_name, p.last_name, p.company, p.domain, p.email, p.title].map(str).join(" ").toLowerCase();
+    return hay.indexOf(state.q) !== -1;
+  }
+  function renderChips() {
+    var c = $("chips"); c.textContent = "";
+    FILTERS.forEach(function (f) {
+      var n = f[0] === "all" ? state.people.length : state.people.filter(function (p) { return group(p).indexOf(f[0]) !== -1; }).length;
+      var b = el("button", "chip", f[1]);
+      b.type = "button"; b.id = "chip-" + f[0];
+      b.setAttribute("aria-pressed", state.filter === f[0] ? "true" : "false");
+      b.appendChild(el("span", "num", n));
+      b.addEventListener("click", function () { state.filter = f[0]; renderPeople(); });
+      c.appendChild(b);
+    });
+  }
+  function personDetail(p) {
+    var d = el("div", "detail");
+    var scr = p.screen && typeof p.screen === "object" ? p.screen : null;
+    if (scr && Array.isArray(scr.rules) && scr.rules.length) {
+      var sec = el("div"); sec.appendChild(el("h3", "", "Website screen"));
+      var ul = el("ul", "rules");
+      scr.rules.forEach(function (r) {
+        if (!r || typeof r !== "object") return;
+        var o = OUTCOME[r.outcome] || [str(r.outcome) || "–", ""];
+        var li = el("li");
+        li.appendChild(pill(o[0], o[1]));
+        var tx = el("div");
+        tx.appendChild(el("b", "", str(r.rule)));
+        var ev = el("div", "ev", str(r.evidence));
+        if (safeUrl(r.evidence_url)) { ev.appendChild(document.createTextNode(" ")); ev.appendChild(link("source", r.evidence_url)); }
+        tx.appendChild(ev);
+        li.appendChild(tx);
+        ul.appendChild(li);
+      });
+      sec.appendChild(ul); d.appendChild(sec);
+    }
+    if (str(p.subject) || str(p.body)) {
+      var es = el("div"); es.appendChild(el("h3", "", "First email" + (p.approval === "approved" ? " (approved)" : "")));
+      var box = el("div", "email");
+      box.appendChild(el("div", "subj", str(p.subject)));
+      box.appendChild(el("pre", "body", str(p.body)));
+      es.appendChild(box); d.appendChild(es);
+    }
+    var dl = el("dl", "kv"), rows = 0;
+    function kv(k, v) { if (v === null || v === undefined || v === "") return; dl.appendChild(el("dt", "", k)); var dd = el("dd"); if (v instanceof Node) dd.appendChild(v); else dd.textContent = String(v); dl.appendChild(dd); rows++; }
+    kv("Why they fit", str(p.why_fit));
+    kv("Opener source", safeUrl(p.evidence_url) ? link(p.evidence_url, p.evidence_url) : "");
+    kv("Dropped because", str(p.drop_reason));
+    kv("Email status", str(p.email_status));
+    kv("Slack group", num(p.slack_group) !== null ? "Group " + p.slack_group + (str(p.approved_by) ? ", approved by " + p.approved_by : "") : "");
+    kv("Apollo", str(p.apollo_contact_id) ? "Contact " + p.apollo_contact_id + (p.override_written === true ? " · personal email saved" : (p.override_written === false ? " · personal email NOT saved" : "")) : "");
+    kv("Sequence", str(p.sequence_status));
+    kv("LinkedIn", safeUrl(p.linkedin_url) ? link("Profile", p.linkedin_url) : "");
+    kv("Location", str(p.location));
+    if (rows) d.appendChild(dl);
+    var flags = Array.isArray(p.flags) ? p.flags.filter(function (x) { return str(x); }) : [];
+    if (flags.length) { var fl = el("div", "flags"); flags.forEach(function (x) { fl.appendChild(pill(x, "t-warn")); }); d.appendChild(fl); }
+    if (!d.childNodes.length) d.appendChild(el("p", "note", "More detail appears as this person moves through the steps."));
+    return d;
+  }
+  function renderPeople() {
+    renderChips();
+    var box = $("people"); box.textContent = "";
+    if (!state.people.length) {
+      var e = el("div", "empty"); e.appendChild(el("b", "", state.loaded ? "No people yet" : "Loading people"));
+      e.appendChild(document.createTextNode("Contacts appear here once the Apollo search has run."));
+      box.appendChild(e); return;
+    }
+    var list = state.people.filter(matches).sort(function (a, b) {
+      var ra = PS[a.stage] ? PS[a.stage][2] : 15, rb = PS[b.stage] ? PS[b.stage][2] : 15;
+      if (ra !== rb) return ra - rb;
+      return (str(a.company) + str(a.last_name)).localeCompare(str(b.company) + str(b.last_name));
+    });
+    if (!list.length) { var n = el("div", "empty"); n.appendChild(el("b", "", "Nobody matches")); n.appendChild(document.createTextNode("Try another filter or search.")); box.appendChild(n); return; }
+    var frag = document.createDocumentFragment();
+    list.forEach(function (p) {
+      var det = el("details", "person");
+      det.id = "p-" + p._id;
+      if (state.open.has(p._id)) det.open = true;
+      det.addEventListener("toggle", function () { if (det.open) state.open.add(p._id); else state.open.delete(p._id); });
+      var s = el("summary");
+      var who = el("div", "who"); who.appendChild(el("b", "", [str(p.first_name), str(p.last_name)].join(" ").trim() || "Unnamed")); who.appendChild(el("span", "", str(p.title)));
+      var org = el("div", "org"); org.appendChild(el("b", "", str(p.company)));
+      if (str(p.domain)) { var ds = el("span"); ds.appendChild(link(p.domain, p.domain)); ds.querySelector("a, span").addEventListener("click", function (ev) { ev.stopPropagation(); }); org.appendChild(ds); }
+      var mail = el("div", "mail", str(p.email) || " ");
+      if (str(p.subject)) mail.appendChild(el("span", "", p.subject));
+      else if (p.screen && OUTCOME[p.screen.outcome]) mail.appendChild(el("span", "", "Screen: " + OUTCOME[p.screen.outcome][0].toLowerCase()));
+      var st = PS[p.stage] || [str(p.stage) || "Unknown", ""];
+      s.appendChild(who); s.appendChild(org); s.appendChild(mail); s.appendChild(pill(st[0], st[1]));
+      det.appendChild(s);
+      det.appendChild(personDetail(p));
+      frag.appendChild(det);
+    });
+    box.appendChild(frag);
+  }
+
+  $("q").addEventListener("input", function (e) { state.q = String(e.target.value || "").trim().toLowerCase(); renderPeople(); });
+  setInterval(tick, 30000);
+  renderPeople();
+
+  /* ---------- Live data ---------- */
+  function setNote(text, tone) {
+    var p = $("stage-pill"); p.textContent = text; p.className = "pill big " + (tone || "");
+  }
+  var timer = setTimeout(function () { if (!state.loaded) { setNote("Can't reach data yet", "t-warn"); $("meta").textContent = "Campaign data hasn't loaded. It will appear here once the connection answers."; } }, 10000);
+  function settle() { if (!state.loaded) { state.loaded = true; clearTimeout(timer); } }
+  function onErr() { settle(); setNote("Live updates stopped", "t-bad"); $("updated").textContent = "Reopen the page to reconnect."; }
+
+  if (!window.claude || typeof window.claude.use !== "function") {
+    clearTimeout(timer); setNote("Open in Claude", "");
+    $("meta").textContent = "Live campaign data loads only when this page is opened on claude.ai while signed in.";
+    return;
+  }
+  window.claude.use("db").then(function (db) {
+    if (!db) {
+      clearTimeout(timer); setNote("No live data", "");
+      $("meta").textContent = "Live campaign data isn't available in this view. Open the page on claude.ai while signed in.";
+      return;
+    }
+    db.doc("run/summary").onSnapshot(function (snap) {
+      if (!snap.metadata.fromCache) settle();
+      state.summary = snap.exists ? snap.data() : null;
+      if (state.summary) renderSummary();
+      else if (state.loaded) { setNote("Starting", "t-info"); $("meta").textContent = "This campaign fills in as the outbound-leads skill runs."; }
+    }, onErr);
+    db.doc("run/activity").onSnapshot(function (snap) {
+      state.activity = snap.exists ? snap.data() : null; renderActivity();
+    }, onErr);
+    db.collection("people").onSnapshot(function (snap) {
+      if (!snap.metadata.fromCache) settle();
+      state.people = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); o._id = d.id; return o; });
+      renderPeople();
+    }, onErr);
+  });
+})();
+</script>

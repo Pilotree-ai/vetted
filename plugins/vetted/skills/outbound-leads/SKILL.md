@@ -16,7 +16,8 @@ One sentence in, an approved and running outbound batch out. The process and saf
   - `outbound/config.md`: standing defaults (company, products, senders, Slack IDs, voice, holds). Created on first run from `templates/config.template.md`, and filled in through a short dialogue (`references/setup.md`). If the user asks to change their setup, run `setup.md` for the fields they name.
   - `outbound/offers/`: the user's saved offers (product, audience, terms, prices, four email steps, reply handling), one file each. Prices and terms only ever live here or in the brief, never in the skill.
   - `outbound/contacted.csv`: ledger of every company and person ever enrolled, across all senders. Used for exclusions.
-  - `outbound/campaigns/<slug>/`: one folder per batch with `brief.md` and the working files for each step.
+  - `outbound/campaigns/<slug>/`: one folder per batch with `brief.md` and the working files for each step, plus `dashboard.html` and `00-dashboard.json` (the live dashboard's page and its URL and versions).
+
 ## The run, step by step
 
 Read each reference file when you reach its step, not before. Keep the user informed with one short line per step.
@@ -24,7 +25,7 @@ Read each reference file when you reach its step, not before. Keep the user info
 | # | Step | Read | Credits | Gate |
 |---|---|---|---|---|
 | 0 | Preflight: check Apollo, Slack and plan limits, then fill any missing config in a short dialogue | `references/preflight.md`, `references/setup.md` | Free | Stop if anything fails |
-| 1 | Intake: sentence to brief, ask gaps, read back | `templates/campaign-brief.md` | Free | **Gate 1: brief confirmed** |
+| 1 | Intake: sentence to brief, ask gaps, read back. On yes, create the live dashboard | `templates/campaign-brief.md`, `references/dashboard.md` | Free | **Gate 1: brief confirmed** |
 | 2 | Apollo search: broad pull, exclusions | `references/apollo-search.md` | Free | |
 | 3 | Website screen: qualify, drop or unclear with evidence | `references/qualify-rules.md` | Free | |
 | 4 | Enrich qualifiers and unclears only | `references/apollo-search.md` (Enrich section) | **Costs credits** | **Gate 2: cost confirmed** |
@@ -34,6 +35,8 @@ Read each reference file when you reach its step, not before. Keep the user info
 | 8 | Track: ledger, canvas, daily report | `references/tracking.md` | Free | |
 
 Also read `references/lessons-learned.md` once at the start of a run. It is short and explains most of the ways this has gone wrong before. If more than one sender is set up in config, read `references/multi-sender.md` at intake.
+
+**Live dashboard.** As soon as the brief is confirmed, publish the campaign's private dashboard page (`references/dashboard.md`) and give the user its link. At the end of every step, and whenever a gate opens or is answered, update it with that step's people and totals, following the table in `dashboard.md`. It is a read-only mirror. The working files stay the source of truth, approvals stay in Slack, and a dashboard failure never stops the run. Skip it if `dashboard: off` is set in config or the Artifact tools aren't available.
 
 The run can be resumed. Each step writes its output to the campaign folder, so if the user comes back later ("carry on with the agency batch", "check the Slack ticks"), read the brief and the latest working file and pick up from the next step. Do not redo steps that cost credits.
 
@@ -64,4 +67,4 @@ These defaults can be changed in `outbound/config.md`. A brief can add rules but
 
 ## Finishing a run
 
-When the sequence is live, tell the user: the sequence name, how many contacts are enrolled, the sender mailbox, when the first emails should go out, anyone removed and why, credits used, and the canvas section that was added. Offer to set up or extend the daily report (`references/tracking.md`).
+When the sequence is live, tell the user: the sequence name, how many contacts are enrolled, the sender mailbox, when the first emails should go out, anyone removed and why, credits used, the canvas section that was added, and the dashboard link. Offer to set up or extend the daily report (`references/tracking.md`).

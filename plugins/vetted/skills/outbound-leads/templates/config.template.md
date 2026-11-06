@@ -69,6 +69,10 @@ senders:
 - screen_multiplier: 4             # screen about 4x the target to end up with enough qualifiers
 - max_pages_per_site: 3
 
+## Live dashboard
+
+- dashboard: on                    # a private claude.ai page per campaign, updated after every step. "off" to skip
+
 ## Holds
 
 Companies or people not to contact until something is checked. The search step excludes them.
