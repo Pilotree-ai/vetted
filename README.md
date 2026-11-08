@@ -20,6 +20,19 @@ Three steps later, 40 people at the right companies each have an email that star
 
 ---
 
+## Install
+
+```
+/plugin marketplace add Pilotree-ai/vetted
+/plugin install vetted@pilotree
+```
+
+The skill then shows up as `vetted:outbound-leads`. You don't need to call it by name: just describe the leads you want.
+
+**Needs:** a paid Apollo plan, a sender mailbox and Slack. See [Requirements](#requirements) before your first run.
+
+---
+
 ## Why it exists
 
 Outbound done properly is slow. Done fast, it is usually generic and risky.
@@ -106,17 +119,6 @@ As soon as you confirm the brief, the skill gives you a link to a **live dashboa
 | **Slack** | Any channel you want approvals posted in. You choose it at setup, or the skill can create one for you. The connected Slack user must be a member |
 
 Connect **Apollo** and **Slack** once in claude.ai Settings > Connectors. They're tied to your Claude account, so Claude Code picks them up automatically.
-
----
-
-## Install
-
-```
-/plugin marketplace add Pilotree-ai/vetted
-/plugin install vetted@pilotree
-```
-
-The skill then shows up as `vetted:outbound-leads`. You don't need to call it by name: just describe the leads you want.
 
 ---
 
