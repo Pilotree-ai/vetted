@@ -43,6 +43,8 @@ Bounces: ... (catch-all flagged: <n>)
 
 Order the summary: replies first, then bounces, then totals. Then update each batch's canvas section and the ledger.
 
+Finally, refresh the outbound overview (`overview.md`) and add its link as the last line of the Slack summary: `Overview: <url>`. The status check has already fetched most of the sequence data, so reuse it rather than calling Apollo twice.
+
 To confirm what was actually sent, read a sent copy with `apollo_emailer_messages_get_content`.
 
 If the batch's brief has reply handling, add one line per new reply with the suggested next step (for example "Yes: run the free check and send the result within a day"). Claude does not reply on the sender's behalf.

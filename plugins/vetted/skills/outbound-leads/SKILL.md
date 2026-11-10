@@ -1,6 +1,6 @@
 ---
 name: outbound-leads
-description: Run a full cold-outbound lead campaign from one plain sentence using Apollo.io and Slack. Turns a description like "UK marketing agencies, up to 20 staff, partner-led, founder as contact, 40 leads, offer is a free site audit" into a confirmed campaign brief, then finds people in Apollo, screens each company's own website against the brief, enriches only qualifiers, writes a personal opener per person, gets every email approved in Slack, loads approved contacts into an Apollo sequence and tracks results. Use this skill whenever the user wants to find leads, build a prospect list, start an outreach or cold email batch, run a new outbound campaign, load approved emails into Apollo, check how an outbound batch is doing, or run outbound on a weekly loop or schedule, even if they do not mention Apollo, Slack or the word "campaign".
+description: Run a full cold-outbound lead campaign from one plain sentence using Apollo.io and Slack. Turns a description like "UK marketing agencies, up to 20 staff, partner-led, founder as contact, 40 leads, offer is a free site audit" into a confirmed campaign brief, then finds people in Apollo, screens each company's own website against the brief, enriches only qualifiers, writes a personal opener per person, gets every email approved in Slack, loads approved contacts into an Apollo sequence and tracks results. Use this skill whenever the user wants to find leads, build a prospect list, start an outreach or cold email batch, run a new outbound campaign, load approved emails into Apollo, check how an outbound batch is doing, see an overview of every sequence and how much mailbox capacity is left, or run outbound on a weekly loop or schedule, even if they do not mention Apollo, Slack or the word "campaign".
 ---
 
 # Outbound leads
@@ -16,6 +16,7 @@ One sentence in, an approved and running outbound batch out. The process and saf
   - `outbound/config.md`: standing defaults (company, products, senders, Slack IDs, voice, holds). Created on first run from `templates/config.template.md`, and filled in through a short dialogue (`references/setup.md`). If the user asks to change their setup, run `setup.md` for the fields they name.
   - `outbound/offers/`: the user's saved offers (product, audience, terms, prices, four email steps, reply handling), one file each. Prices and terms only ever live here or in the brief, never in the skill.
   - `outbound/contacted.csv`: ledger of every company and person ever enrolled, across all senders. Used for exclusions.
+  - `outbound/overview.html` and `outbound/00-overview.json`: the workspace's one overview page of every sequence, and its URL and version.
   - `outbound/campaigns/<slug>/`: one folder per batch with `brief.md` and the working files for each step, plus `dashboard.html` and `00-dashboard.json` (the live dashboard's page and its URL and versions).
 
 ## The run, step by step
@@ -37,6 +38,8 @@ Read each reference file when you reach its step, not before. Keep the user info
 Also read `references/lessons-learned.md` once at the start of a run. It is short and explains most of the ways this has gone wrong before. If more than one sender is set up in config, read `references/multi-sender.md` at intake.
 
 **Live dashboard.** As soon as the brief is confirmed, publish the campaign's private dashboard page (`references/dashboard.md`) and give the user its link. At the end of every step, and whenever a gate opens or is answered, update it with that step's people and totals, following the table in `dashboard.md`. It is a read-only mirror. The working files stay the source of truth, approvals stay in Slack, and a dashboard failure never stops the run. Skip it if `dashboard: off` is set in config or the Artifact tools aren't available.
+
+**Outbound overview.** Besides the per-campaign dashboards, each workspace has one overview page of every Apollo sequence: queued, delivered, bounced and replied per sequence, follow-up days, active sequences, and the mailbox's daily slots left for new sequences (`references/overview.md`). Refresh it at the end of every status check and after a sequence goes live, and whenever the user asks how their sequences are doing or how much room is left. There is one per workspace, kept in `outbound/00-overview.json`. Never create a second one.
 
 The run can be resumed. Each step writes its output to the campaign folder, so if the user comes back later ("carry on with the agency batch", "check the Slack ticks"), read the brief and the latest working file and pick up from the next step. Do not redo steps that cost credits.
 
@@ -71,4 +74,4 @@ These defaults can be changed in `outbound/config.md`. A brief can add rules but
 
 ## Finishing a run
 
-When the sequence is live, tell the user: the sequence name, how many contacts are enrolled, the sender mailbox, when the first emails should go out, anyone removed and why, credits used, the canvas section that was added, and the dashboard link. Offer to set up or extend the daily report (`references/tracking.md`).
+When the sequence is live, tell the user: the sequence name, how many contacts are enrolled, the sender mailbox, when the first emails should go out, anyone removed and why, credits used, the canvas section that was added, the dashboard link and the overview link. Offer to set up or extend the daily report (`references/tracking.md`).

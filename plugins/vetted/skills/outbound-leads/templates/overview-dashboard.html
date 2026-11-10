@@ -1,0 +1,1019 @@
+<title>Vetted Dashboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one workspace-wide console. Headline figures first, then mailbox capacity
+   (forecast chart beside a new-batch planner), then every sequence in one table.
+   Same tokens as the per-campaign dashboard so the two read as one product. */
+:root {
+  --paper: #F6F7F8;
+  --surface: #FFFFFF;
+  --ink: #111214;
+  --muted: #5D636C;
+  --line: #E2E5E9;
+  --bar: #6B7380;
+  --ok: #1D7348;   --ok-soft: #E6F3EC;
+  --warn: #9A5A06; --warn-soft: #FBF0DF;
+  --bad: #B3261E;  --bad-soft: #FBE9E7;
+  --info: #2C56A8; --info-soft: #E8EEFA;
+  --font-ui: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-data: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0E0F11; --surface: #16181B; --ink: #F1F2F4; --muted: #9AA0A8; --line: #2A2E33; --bar: #8A919C;
+    --ok: #57C48D; --ok-soft: #14271D; --warn: #E3A548; --warn-soft: #2B2112;
+    --bad: #F0786B; --bad-soft: #2E1715; --info: #86A9F0; --info-soft: #172238;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0E0F11; --surface: #16181B; --ink: #F1F2F4; --muted: #9AA0A8; --line: #2A2E33; --bar: #8A919C;
+  --ok: #57C48D; --ok-soft: #14271D; --warn: #E3A548; --warn-soft: #2B2112;
+  --bad: #F0786B; --bad-soft: #2E1715; --info: #86A9F0; --info-soft: #172238;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 600; }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; border-radius: 4px; }
+.note { color: var(--muted); font-size: 12.5px; }
+
+/* Header */
+header { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.brand svg { width: 18px; height: 18px; display: block; }
+.brand span { font-weight: 600; font-size: 13px; letter-spacing: -.01em; }
+h1 { font-size: 26px; letter-spacing: -.02em; line-height: 1.2; }
+.meta { color: var(--muted); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.meta b { color: var(--ink); font-weight: 500; }
+.status { display: grid; justify-items: end; gap: 6px; }
+.updated { color: var(--muted); font-size: 12px; }
+
+/* Pills and chips */
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; background: var(--paper); color: var(--muted); border: 1px solid var(--line); }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.t-ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.t-warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.t-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.t-info { background: var(--info-soft); color: var(--info); border-color: transparent; }
+.pill.big { font-size: 13px; padding: 4px 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.chip .num { margin-left: 4px; opacity: .8; }
+
+/* Alert strip */
+.alert { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r); background: var(--warn-soft); color: var(--ink); }
+.alert .diamond { color: var(--warn); font-size: 13px; line-height: 1.5; }
+.alert.bad { background: var(--bad-soft); }
+.alert.bad .diamond { color: var(--bad); }
+
+/* Headline figures */
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.figures > div { padding: 14px 16px; display: grid; gap: 2px; border-left: 1px solid var(--line); min-width: 0; }
+.figures > div:first-child { border-left: 0; }
+.figures .v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 500; letter-spacing: -.02em; }
+.figures .v small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.figures .k { font-size: 12px; color: var(--muted); }
+.figures .s { font-size: 11.5px; color: var(--muted); font-family: var(--font-data); }
+.figures .hl .v { color: var(--info); }
+.figures .hl.full .v { color: var(--bad); }
+
+/* Panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
+.panel-h { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.panel-h h2 { font-size: 15px; }
+.cap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+.cap > .chart-col { padding: 14px 16px 12px; min-width: 0; display: grid; gap: 10px; }
+.cap > .plan { border-left: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+@media (max-width: 920px) { .cap { grid-template-columns: minmax(0, 1fr); } .cap > .plan { border-left: 0; border-top: 1px solid var(--line); } }
+
+/* Chart */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.legend i.dash { height: 0; width: 14px; border-top: 2px dashed var(--muted); border-radius: 0; }
+.chart { position: relative; min-height: 240px; }
+.chart svg { display: block; width: 100%; height: 240px; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--surface); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.45; min-width: 150px; transform: translate(-50%, -100%); white-space: nowrap; z-index: 2; }
+.tip b { font-weight: 600; }
+.tip .row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+details.tbl summary { cursor: pointer; color: var(--muted); font-size: 12.5px; width: max-content; }
+.scroll { overflow-x: auto; }
+
+/* Planner */
+.plan h3 { font-size: 14px; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; color: var(--muted); }
+.field input, .field select { font: inherit; font-size: 13.5px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); width: 100%; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.verdict { padding: 10px 12px; border-radius: 8px; font-size: 13px; display: grid; gap: 2px; }
+.verdict b { font-weight: 600; }
+.verdict.ok { background: var(--ok-soft); }
+.verdict.over { background: var(--bad-soft); }
+.maxfit { display: grid; gap: 2px; }
+.maxfit .big { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 500; }
+
+/* Sequences table */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; white-space: nowrap; }
+td.n, th.n { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tbody tr:hover { background: var(--paper); }
+tfoot td { font-weight: 600; border-bottom: 0; }
+.seq-name { min-width: 220px; }
+.seq-name a, .seq-name b { font-weight: 500; overflow-wrap: anywhere; }
+.seq-name span { display: block; color: var(--muted); font-size: 12px; }
+.seq-name .issue { color: var(--warn); }
+.steps { display: inline-flex; gap: 3px; }
+.steps span { min-width: 26px; text-align: center; padding: 1px 4px; border-radius: 4px; background: var(--paper); border: 1px solid var(--line); font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+.steps span.on { background: var(--info-soft); color: var(--info); border-color: transparent; }
+.days { font-family: var(--font-data); font-size: 12px; white-space: nowrap; }
+.zero { color: var(--muted); }
+.bad-n { color: var(--bad); }
+.ok-n { color: var(--ok); }
+
+/* Analysis panels */
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 920px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.pad { padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.lead { margin: 0; padding: 12px 16px 0; max-width: 90ch; }
+.lead.flush { padding: 0; color: var(--muted); font-size: 13px; }
+.lead:empty { display: none; }
+.rows, .hlist { display: grid; gap: 10px; }
+.srow { display: grid; grid-template-columns: minmax(0, 150px) minmax(60px, 1fr) minmax(0, auto); gap: 12px; align-items: center; }
+.slab b { display: block; font-weight: 500; font-size: 13px; overflow-wrap: anywhere; }
+.slab span { display: block; color: var(--muted); font-size: 12px; }
+.sval { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); text-align: right; }
+@media (max-width: 520px) { .srow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .srow .sval { grid-column: 1 / -1; text-align: left; } }
+.rbar { position: relative; display: block; height: 8px; border-radius: 4px; background: var(--line); min-width: 60px; }
+.rbar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--bar); }
+.rbar i.ok { background: var(--ok); }
+.rbar i.warn { background: var(--warn); }
+.rbar i.bad { background: var(--bad); }
+.rbar .mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--muted); border-radius: 1px; }
+td.rate { min-width: 150px; }
+td.rate .rbar { display: inline-block; width: 90px; vertical-align: middle; margin-right: 8px; }
+td.rate .num { font-size: 12.5px; }
+.hhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.hhead .big { font-size: 26px; font-weight: 500; letter-spacing: -.02em; }
+.hhead > div { display: grid; gap: 2px; }
+.pad > .note { margin: 0; }
+
+.empty { padding: 28px 16px; color: var(--muted); text-align: center; }
+.empty b { color: var(--ink); font-weight: 500; display: block; margin-bottom: 4px; }
+footer { color: var(--muted); font-size: 12.5px; display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; }
+footer p { margin: 0; max-width: 90ch; }
+@media (prefers-reduced-motion: no-preference) { .chip, tbody tr { transition: background-color .12s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="var(--ink)"/><path d="M19 28.5 L29.5 44 L45.5 19.5" fill="none" stroke="var(--surface)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Vetted</span>
+      </div>
+      <h1>All sequences</h1>
+      <div class="meta" id="meta"><span>Waiting for Apollo data</span></div>
+    </div>
+    <div class="status">
+      <span class="pill big" id="state-pill">Connecting</span>
+      <span class="updated" id="updated"></span>
+    </div>
+  </header>
+
+  <div class="chips" id="senders" role="toolbar" aria-label="Sender mailbox" hidden></div>
+
+  <div class="alert" id="alert" hidden><span class="diamond" aria-hidden="true">◆</span><div id="alert-text"></div></div>
+
+  <section class="figures" id="figures" aria-label="Totals"></section>
+
+  <section class="panel" aria-labelledby="cap-h">
+    <div class="panel-h">
+      <h2 id="cap-h">Mailbox capacity</h2>
+      <span class="note" id="cap-note"></span>
+    </div>
+    <div class="cap">
+      <div class="chart-col">
+        <div class="legend">
+          <span><i style="background: var(--bar)"></i>Already queued</span>
+          <span><i style="background: var(--info)"></i>New batch (planner)</span>
+          <span><i class="dash"></i><span id="lg-limit">Daily limit</span></span>
+        </div>
+        <div class="chart" id="chart"><div class="empty"><b>No forecast yet</b>It appears once sequence data has loaded.</div></div>
+        <details class="tbl">
+          <summary>Show as table</summary>
+          <div class="scroll"><table id="fc-table"></table></div>
+        </details>
+      </div>
+      <div class="plan">
+        <div>
+          <h3>Room for a new sequence</h3>
+          <p class="note" style="margin: 4px 0 0">Each new contact gets 4 emails, so a batch also adds follow-ups on the days below.</p>
+        </div>
+        <div class="maxfit" id="maxfit"></div>
+        <div class="field-row">
+          <div class="field"><label for="in-n">Contacts</label><input id="in-n" type="number" min="0" max="2000" step="1" value="40"></div>
+          <div class="field"><label for="in-cap">Cap per day</label><input id="in-cap" type="number" min="1" max="1000" step="1" value="50"></div>
+        </div>
+        <div class="field"><label for="in-start">First send day</label><select id="in-start"></select></div>
+        <div class="verdict" id="verdict" hidden></div>
+        <p class="note" id="steps-note" style="margin: 0"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="camp-h">
+    <div class="panel-h">
+      <h2 id="camp-h">Which campaign is working</h2>
+      <span class="note">Batches of the same offer grouped together, best reply rate first</span>
+    </div>
+    <p class="lead" id="camp-note"></p>
+    <div class="scroll"><table id="camp-table"><tbody><tr><td class="empty">Campaigns appear once sequence data has loaded.</td></tr></tbody></table></div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="step-h">
+      <div class="panel-h"><h2 id="step-h">Replies by step</h2><span class="note">All sequences</span></div>
+      <div class="pad">
+        <div class="rows" id="step-rows"></div>
+        <p class="lead flush" id="step-note"></p>
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="health-h">
+      <div class="panel-h"><h2 id="health-h">Deliverability</h2><span class="note">Bounces and spam blocks against Apollo's limits</span></div>
+      <div class="pad" id="health"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="trend-h">
+    <div class="panel-h">
+      <h2 id="trend-h">Daily activity</h2>
+      <span class="note" id="trend-note"></span>
+    </div>
+    <div class="pad">
+      <div class="legend">
+        <span><i style="background: var(--bar)"></i>Emails sent</span>
+        <span><i class="dash"></i>Daily limit</span>
+        <span>Rep = replies · Bnc = bounces</span>
+      </div>
+      <div class="chart" id="trend"><div class="empty"><b>No daily history yet</b>Each daily refresh adds a day here.</div></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="seq-h">
+    <div class="panel-h">
+      <h2 id="seq-h">Sequences</h2>
+      <div class="chips" id="filters" role="toolbar" aria-label="Filter sequences"></div>
+    </div>
+    <p class="note" id="seq-shared" style="margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--warn)" hidden></p>
+    <div class="scroll"><table id="seq-table"><tbody><tr><td class="empty">Sequences appear here once Apollo data has loaded.</td></tr></tbody></table></div>
+  </section>
+
+  <footer>
+    <p><b>Queued</b> is the emails Apollo has scheduled now: one per active contact, their next step. <b>Delivered</b>, <b>Bounced</b> and <b>Replied</b> count emails. <b>People emailed</b> is how many got the first email. <b>Reply rate</b> is replies divided by people emailed. <b>Slots left</b> is the mailbox's daily limit from Apollo, minus what it has sent today and what the live sequences will send.</p>
+    <p>A <b>campaign</b> groups the batches of one offer by sequence name ("UK agencies - US batch 2" belongs to "UK agencies"). Daily activity comes from Apollo's analytics, one record per day.</p>
+    <p>The forecast is an estimate. It assumes follow-ups go out on their step day (weekdays only), each sequence stays within its own cap, and the mailbox never sends more than its daily limit. Anything over the limit waits for the next day. Read-only. Refreshed from Apollo by the outbound-leads skill.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* sim:start  (pure date and forecast helpers, no DOM) */
+  function keyOf(d) { return d.toISOString().slice(0, 10); }
+  function parseKey(k) { var p = k.split("-"); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); }
+  function addDays(k, n) { var d = parseKey(k); d.setUTCDate(d.getUTCDate() + n); return keyOf(d); }
+  function isWeekday(k) { var w = parseKey(k).getUTCDay(); return w !== 0 && w !== 6; }
+  function nextWeekday(k) { while (!isWeekday(k)) k = addDays(k, 1); return k; }
+  function localKey(iso, tz) {
+    var t = Date.parse(iso); if (!t) return null;
+    try { return new Intl.DateTimeFormat("en-CA", { timeZone: tz || "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(t)); }
+    catch (e) { return new Date(t).toISOString().slice(0, 10); }
+  }
+  function sendingDays(startKey, n) {
+    var out = [], k = nextWeekday(startKey);
+    while (out.length < n) { out.push(k); k = nextWeekday(addDays(k, 1)); }
+    return out;
+  }
+  function indexFor(days, k) { for (var i = 0; i < days.length; i++) if (days[i] >= k) return i; return days.length; }
+  function offsets(waits) { var d = 0; return waits.map(function (w) { d += (+w || 0); return d; }); }
+  function addTo(q, day, step, n) {
+    for (var i = 0; i < q.length; i++) if (q[i].day === day && q[i].step === step) { q[i].n += n; return; }
+    q.push({ day: day, step: step, n: n });
+  }
+  // seqs: [{cap, waits:[w1..wn], pending:[{day, step (0-based), n}]}]. Sends each day in order,
+  // follow-ups before first emails, within each sequence's cap and the mailbox limit.
+  // limit is a number, or an array with one limit per sending day (today minus what was already sent).
+  function simulate(seqs, days, limit) {
+    var H = days.length, total = new Array(H).fill(0), waiting = new Array(H).fill(0);
+    var per = seqs.map(function () { return new Array(H).fill(0); });
+    var queues = seqs.map(function (s) { return s.pending.map(function (p) { return { day: p.day, step: p.step, n: p.n }; }); });
+    for (var d = 0; d < H; d++) {
+      var room = typeof limit === "number" ? limit : (+limit[d] || 0);
+      for (var i = 0; i < seqs.length; i++) {
+        var s = seqs[i], q = queues[i];
+        q.sort(function (a, b) { return a.day - b.day || b.step - a.step; });
+        var can = Math.max(0, Math.min(s.cap, room)), sent = 0, len = q.length;
+        for (var j = 0; j < len && sent < can; j++) {
+          var it = q[j];
+          if (it.day > d || it.n <= 0) continue;
+          var take = Math.min(it.n, can - sent);
+          it.n -= take; sent += take;
+          var nx = it.step + 1;
+          if (nx < s.waits.length) {
+            var di = indexFor(days, addDays(days[d], Math.max(1, +s.waits[nx] || 0)));
+            if (di < H) addTo(q, di, nx, take);
+          }
+        }
+        queues[i] = q = q.filter(function (x) { return x.n > 0; });
+        per[i][d] = sent; total[d] += sent; room -= sent;
+        for (var k = 0; k < q.length; k++) if (q[k].day <= d) waiting[d] += q[k].n;
+      }
+    }
+    return { total: total, waiting: waiting, per: per };
+  }
+  // Existing sequences: contacts waiting at step 1 are due now; later steps are due
+  // their step day after the sequence was created, or now if that has passed.
+  function existingPlan(seqs, days, tz) {
+    return seqs.filter(function (s) { return s && s.active && !s.archived; }).sort(function (a, b) {
+      return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    }).map(function (s) {
+      var steps = Array.isArray(s.steps) ? s.steps.slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); }) : [];
+      var waits = steps.map(function (x) { return +x.wait || 0; });
+      var offs = offsets(waits), created = localKey(s.created_at, tz) || days[0], pending = [];
+      steps.forEach(function (x, k) {
+        var n = +x.active || 0; if (n <= 0) return;
+        var due = k === 0 ? days[0] : addDays(created, offs[k]);
+        pending.push({ day: indexFor(days, due < days[0] ? days[0] : due), step: k, n: n });
+      });
+      return { cap: Math.max(1, +s.daily_cap || 50), waits: waits, pending: pending };
+    });
+  }
+  // A new batch runs after the existing sequences (they keep priority) inside the mailbox limit.
+  // Its lag is how many sending days behind its own schedule (cap only, empty mailbox) it falls.
+  var LAG_OK = 2;
+  function tryBatch(n, cap, waits, startIdx, days, plan, limit) {
+    var H = days.length, zero = new Array(H).fill(0);
+    if (n <= 0) return { load: zero, lag: 0, done: true };
+    var batch = { cap: cap, waits: waits, pending: [{ day: startIdx, step: 0, n: n }] };
+    var alone = simulate([batch], days, Infinity).per[0];
+    var joint = simulate(plan.concat([batch]), days, limit).per[plan.length];
+    var ca = 0, cj = [], acc = 0, lag = 0, i;
+    for (i = 0; i < H; i++) { acc += joint[i]; cj.push(acc); }
+    for (i = 0; i < H; i++) {
+      ca += alone[i]; if (!alone[i]) continue;
+      var L = 0; while (i + L < H && cj[i + L] < ca) L++;
+      if (L > lag) lag = L;
+    }
+    return { load: joint, lag: lag, done: acc >= n * waits.length };
+  }
+  function fitsBatch(r) { return r.done && r.lag <= LAG_OK; }
+  // Largest n such that every batch from 1 to n fits. Scanned upward, because lag is not
+  // monotonic in n (a big batch's own schedule is already slow). Checked up to one working
+  // week of first emails at this cap; returns that ceiling if everything up to it fits.
+  function scanCeiling(cap) { return Math.min(1000, cap * 5); }
+  function maxFit(cap, waits, startIdx, days, plan, limit) {
+    var top = scanCeiling(cap);
+    for (var n = 1; n <= top; n += (n < 100 ? 1 : 5)) {
+      if (!fitsBatch(tryBatch(n, cap, waits, startIdx, days, plan, limit))) return n < 100 ? n - 1 : n - 5;
+    }
+    return top;
+  }
+  /* sim:end */
+
+  var SHOW_DAYS = 15, CALC_DAYS = 45;
+  var ISSUES = {
+    sequence_inactive: "Sequence is switched off",
+    no_steps: "Sequence has no steps",
+    no_schedule: "No sending schedule",
+    schedule_has_no_send_windows: "Sending schedule has no send windows",
+    schedule_owned_by_another_user: "Sending schedule belongs to another Apollo user",
+    email_steps_without_approved_template: "A step has no approved email"
+  };
+  var state = { doc: null, history: [], sender: 0, filter: "all", loaded: false, calc: null };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null && text !== "") n.textContent = String(text);
+    return n;
+  }
+  function str(v) { return typeof v === "string" ? v : (typeof v === "number" ? String(v) : ""); }
+  function num(v) { return typeof v === "number" && isFinite(v) ? v : null; }
+  function n0(v) { return num(v) || 0; }
+  function fmt(v) { var n = num(v); return n === null ? "–" : n.toLocaleString("en-GB"); }
+  function pct(a, b) { if (!b) return "–"; var p = a / b * 100; return (p < 10 ? p.toFixed(1) : Math.round(p)) + "%"; }
+  function safeUrl(u) {
+    u = str(u).trim(); if (!u) return "";
+    try { var p = new URL(u); return (p.protocol === "https:") ? p.href : ""; } catch (e) { return ""; }
+  }
+  function link(text, url) {
+    var href = safeUrl(url);
+    if (!href) return el("b", "", text);
+    var a = el("a", "", text); a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer";
+    return a;
+  }
+  function pill(label, tone) { return el("span", "pill " + (tone || ""), label); }
+  function dayLabel(k, todayKey) {
+    if (k === todayKey) return "Today";
+    if (k === addDays(todayKey, 1)) return "Tomorrow";
+    return parseKey(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  }
+  function shortDay(k) { return parseKey(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", timeZone: "UTC" }); }
+  function ago(iso) {
+    var t = Date.parse(str(iso)); if (!t) return "";
+    var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (s < 60) return "just now";
+    var m = Math.round(s / 60); if (m < 60) return m + " min ago";
+    var h = Math.round(m / 60); if (h < 24) return h + " h ago";
+    return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  }
+
+  /* ---------- Data shaping ---------- */
+  function senders() {
+    var d = state.doc || {};
+    var list = Array.isArray(d.senders) ? d.senders.filter(function (s) { return s && typeof s === "object"; }) : [];
+    return list.length ? list : [{ name: "", mailbox: "", user_id: "", daily_limit: 150 }];
+  }
+  function currentSender() { var s = senders(); return s[Math.min(state.sender, s.length - 1)]; }
+  function sequencesFor(sender) {
+    var all = Array.isArray((state.doc || {}).sequences) ? state.doc.sequences.filter(function (s) { return s && typeof s === "object" && !s.archived; }) : [];
+    if (senders().length < 2 || !str(sender.user_id)) return all;
+    return all.filter(function (s) { return str(s.owner_user_id) === str(sender.user_id); });
+  }
+  function followDays(s) {
+    var steps = Array.isArray(s.steps) ? s.steps.slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); }) : [];
+    return offsets(steps.map(function (x) { return +x.wait || 0; }));
+  }
+  function defaults() {
+    var d = (state.doc || {}).new_sequence || {};
+    var waits = Array.isArray(d.waits) && d.waits.length ? d.waits.map(function (w) { return +w || 0; }) : [0, 3, 4, 7];
+    return { cap: num(d.daily_cap) || 50, waits: waits };
+  }
+
+  function compute() {
+    var doc = state.doc; if (!doc) return null;
+    var tz = str(doc.timezone) || "Europe/London";
+    var sender = currentSender(), limit = num(sender.daily_limit) || 150;
+    var seqs = sequencesFor(sender);
+    var start = localKey(doc.updated_at, tz) || keyOf(new Date());
+    var days = sendingDays(start, CALC_DAYS);
+    // Today's room is the limit minus what the mailbox has already sent today.
+    var sentToday = days[0] === start ? n0(sender.sent_today) : 0;
+    var lims = days.map(function (_, i) { return i === 0 ? Math.max(0, limit - sentToday) : limit; });
+    var plan = existingPlan(seqs, days, tz), sim = simulate(plan, days, lims);
+    var used = sim.total.slice(); used[0] += sentToday;
+    return { tz: tz, sender: sender, limit: limit, lims: lims, sentToday: sentToday, seqs: seqs, days: days, plan: plan,
+      base: sim.total, used: used, waiting: sim.waiting, todayKey: localKey(new Date().toISOString(), tz) };
+  }
+
+  /* ---------- Campaigns, steps, deliverability, trend ---------- */
+  function sortedSteps(s) {
+    return Array.isArray(s.steps) ? s.steps.filter(function (x) { return x && typeof x === "object"; })
+      .slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); }) : [];
+  }
+  // A campaign is the offer a run of batches shares: the explicit field, else the name
+  // without its "- batch 2" / "- US batch 1" / "- <sender>" ending.
+  function campaignOf(s) {
+    var c = str(s.campaign).trim(); if (c) return c;
+    var n = str(s.name).trim();
+    return n.replace(/\s+-\s+(?:[A-Za-z]{2,3}\s+)?batch\s*\d+.*$/i, "").trim() || n || "Unnamed";
+  }
+  function reachedOf(s) { var st = sortedSteps(s); return st.length && num(st[0].sent) !== null ? st[0].sent : n0(s.reached); }
+  function campaignRows(seqs) {
+    var map = {}, out = [];
+    seqs.forEach(function (s) {
+      var k = campaignOf(s), e = s.emails || {};
+      if (!map[k]) { map[k] = { name: k, seqs: 0, active: 0, reached: 0, sent: 0, replied: 0, interested: 0, bounced: 0, spam: 0, steps: [] }; out.push(map[k]); }
+      var g = map[k];
+      g.seqs++; if (s.active) g.active++;
+      g.reached += reachedOf(s); g.sent += n0(e.sent); g.replied += n0(e.replied); g.interested += n0(e.interested);
+      g.bounced += n0(e.bounced); g.spam += n0(e.spam_blocked);
+      sortedSteps(s).forEach(function (x, i) {
+        g.steps[i] = g.steps[i] || { sent: 0, replied: 0 };
+        g.steps[i].sent += n0(x.sent); g.steps[i].replied += n0(x.replied);
+      });
+    });
+    return out.sort(function (a, b) {
+      var ra = a.reached ? a.replied / a.reached : 0, rb = b.reached ? b.replied / b.reached : 0;
+      return rb - ra || b.reached - a.reached;
+    });
+  }
+  function stepTotals(seqs) {
+    var out = [];
+    seqs.forEach(function (s) {
+      var offs = followDays(s);
+      sortedSteps(s).forEach(function (x, i) {
+        out[i] = out[i] || { sent: 0, replied: 0, bounced: 0, day: offs[i] };
+        out[i].sent += n0(x.sent); out[i].replied += n0(x.replied); out[i].bounced += n0(x.bounced);
+      });
+    });
+    return out;
+  }
+
+  /* ---------- Rendering ---------- */
+  function render() {
+    var doc = state.doc; if (!doc) return;
+    var c = state.calc = compute();
+    renderSenders();
+    var meta = $("meta"); meta.textContent = "";
+    function m(k, v) { if (!v) return; var sp = el("span", "", k + " "); sp.appendChild(el("b", "", v)); meta.appendChild(sp); }
+    m("Mailbox", [str(c.sender.name), str(c.sender.mailbox)].filter(Boolean).join(" · "));
+    m("Time zone", c.tz);
+    if (!meta.childNodes.length) meta.appendChild(el("span", "", "Apollo workspace"));
+
+    var active = c.seqs.filter(function (s) { return s.active; });
+    var sum = function (key) { return c.seqs.reduce(function (a, s) { return a + n0((s.emails || {})[key]); }, 0); };
+    var queued = sum("queued"), delivered = sum("delivered"), bounced = sum("bounced"), replied = sum("replied"), spam = sum("spam_blocked");
+    var reached = c.seqs.reduce(function (a, s) { return a + reachedOf(s); }, 0);
+    var sent = sum("sent") || (delivered + bounced);
+    var capSum = active.reduce(function (a, s) { return a + n0(s.daily_cap); }, 0);
+    var slots0 = Math.max(0, c.limit - c.used[0]);
+    var freeWeek = 0; for (var i = 0; i < 5; i++) freeWeek += Math.max(0, c.limit - c.used[i]);
+    var firstFree = -1; for (var j = 0; j < c.days.length; j++) if (c.limit - c.used[j] > 0) { firstFree = j; break; }
+
+    var maxSeq = num(doc.max_active_sequences);
+    var cells = [
+      ["Sequences", fmt(c.seqs.length), fmt(active.length) + " active" + (maxSeq ? " of " + fmt(maxSeq) + " allowed" : ""), ""],
+      ["Daily limit", fmt(c.limit), "per mailbox · caps add to " + fmt(capSum), ""],
+      ["Slots left " + dayLabel(c.days[0], c.todayKey).toLowerCase(), fmt(slots0), fmt(freeWeek) + " free over 5 days", slots0 ? "hl" : "hl full"],
+      ["Queued", fmt(queued), "across " + fmt(c.seqs.filter(function (s) { return n0((s.emails || {}).queued); }).length) + " sequences", ""],
+      ["Delivered", fmt(delivered), reached ? fmt(reached) + " people emailed" : "", ""],
+      ["Replied", fmt(replied), reached ? pct(replied, reached) + " of people emailed" : "", ""],
+      ["Bounced", fmt(bounced), (sent ? pct(bounced, sent) + " of sent" : "–") + (spam ? " · " + fmt(spam) + " spam blocked" : ""), ""]
+    ];
+    var f = $("figures"); f.textContent = "";
+    cells.forEach(function (x) {
+      var d = el("div", x[3]);
+      d.appendChild(el("span", "k", x[0]));
+      d.appendChild(el("span", "v", x[1]));
+      d.appendChild(el("span", "s", x[2] || " "));
+      f.appendChild(d);
+    });
+
+    // Alert: the mailbox is full, or bounces are high.
+    var al = $("alert"), at = $("alert-text"), br = sent ? bounced / sent : 0, ap = autoPause();
+    var hot = c.seqs.filter(function (s) { var e = s.emails || {}; return n0(e.sent) >= 20 && n0(e.bounced) / n0(e.sent) * 100 >= ap.warning_pct; });
+    al.className = "alert"; at.textContent = "";
+    if (br > 0.05 || hot.length) {
+      al.className = "alert bad";
+      at.appendChild(el("b", "", hot.length
+        ? fmt(hot.length) + " sequence" + (hot.length > 1 ? "s are" : " is") + " at or above Apollo's " + ap.warning_pct + "% bounce warning. "
+        : "Bounces are at " + pct(bounced, sent) + ". "));
+      at.appendChild(document.createTextNode("High bounces can hurt the sending domain for every sequence. Check those lists before starting another sequence."));
+      al.hidden = false;
+    } else if (!slots0) {
+      at.appendChild(el("b", "", "The mailbox is full " + dayLabel(c.days[0], c.todayKey).toLowerCase() + ". "));
+      at.appendChild(document.createTextNode(firstFree >= 0
+        ? "The live sequences already fill the " + fmt(c.limit) + " a day limit. The first day with room is " + dayLabel(c.days[firstFree], c.todayKey) + ". A sequence started earlier waits in the queue."
+        : "The live sequences fill the daily limit for the whole forecast."));
+      al.hidden = false;
+    } else al.hidden = true;
+
+    $("lg-limit").textContent = "Daily limit (" + fmt(c.limit) + ")";
+    $("cap-note").textContent = "Next " + SHOW_DAYS + " sending days, weekdays only";
+    renderStartOptions();
+    renderPlanner();
+    renderCampaigns();
+    renderSteps();
+    renderHealth();
+    renderTrend();
+    renderTable();
+    tick();
+  }
+
+  function autoPause() {
+    var a = (state.doc || {}).auto_pause || {};
+    return { warning_pct: num(a.warning_pct) || 4, pause_pct: num(a.pause_pct) || 6, window_days: num(a.window_days) || 7, min_volume: num(a.min_volume) || 200 };
+  }
+  function rateBar(rate, scaleMax, tone, marks) {
+    var t = el("span", "rbar"), f = el("i", tone || "");
+    f.style.width = Math.max(rate > 0 ? 2 : 0, Math.min(100, rate / scaleMax * 100)) + "%";
+    t.appendChild(f);
+    (marks || []).forEach(function (m) { var k = el("b", "mark"); k.style.left = Math.min(100, m / scaleMax * 100) + "%"; t.appendChild(k); });
+    return t;
+  }
+
+  /* 1. Which campaign is working */
+  function renderCampaigns() {
+    var c = state.calc, rows = campaignRows(c.seqs), t = $("camp-table"); t.textContent = "";
+    var maxRate = Math.max(0.05, Math.max.apply(null, rows.map(function (g) { return g.reached ? g.replied / g.reached : 0; }).concat([0])));
+    var hd = el("thead"), hr = el("tr");
+    [["Campaign", ""], ["Sequences", "n"], ["People emailed", "n"], ["Replied", "n"], ["Reply rate", ""], ["Interested", "n"], ["Replies by step", ""], ["Bounce rate", "n"]]
+      .forEach(function (h) { hr.appendChild(el("th", h[1], h[0])); });
+    hd.appendChild(hr); t.appendChild(hd);
+    var tb = el("tbody");
+    rows.forEach(function (g) {
+      var tr = el("tr"), rate = g.reached ? g.replied / g.reached : 0;
+      var nm = el("td", "seq-name"); nm.appendChild(el("b", "", g.name));
+      if (g.reached < 30) nm.appendChild(el("span", "", "Small sample, too early to judge"));
+      tr.appendChild(nm);
+      tr.appendChild(el("td", "n", fmt(g.seqs) + (g.active !== g.seqs ? " (" + fmt(g.active) + " on)" : "")));
+      tr.appendChild(el("td", "n", fmt(g.reached)));
+      tr.appendChild(el("td", "n " + (g.replied ? "ok-n" : "zero"), fmt(g.replied)));
+      var rc = el("td", "rate"); rc.appendChild(rateBar(rate, maxRate, g.replied ? "ok" : "")); rc.appendChild(el("span", "num", g.reached ? pct(g.replied, g.reached) : "–")); tr.appendChild(rc);
+      tr.appendChild(el("td", "n " + (g.interested ? "ok-n" : "zero"), fmt(g.interested)));
+      var sc = el("td"), sw = el("span", "steps");
+      g.steps.forEach(function (x, i) { var sp = el("span", x.replied ? "on" : "", x.sent ? fmt(x.replied) : "–"); sp.title = "Step " + (i + 1) + ": " + fmt(x.replied) + " replies from " + fmt(x.sent) + " sent"; sw.appendChild(sp); });
+      sc.appendChild(sw); tr.appendChild(sc);
+      tr.appendChild(el("td", "n " + (g.bounced ? "bad-n" : "zero"), g.sent ? pct(g.bounced, g.sent) : "–"));
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    var best = rows.filter(function (g) { return g.replied; })[0];
+    var totalR = rows.reduce(function (a, g) { return a + g.replied; }, 0);
+    $("camp-note").textContent = best
+      ? best.name + " leads with " + pct(best.replied, best.reached) + " (" + fmt(best.replied) + " of " + fmt(best.reached) + "). " +
+        fmt(rows.filter(function (g) { return !g.replied && g.reached; }).length) + " of " + fmt(rows.length) + " campaigns have no replies yet."
+      : (totalR ? "" : "No replies yet in any campaign.");
+  }
+
+  /* 2. Which step gets the replies */
+  function renderSteps() {
+    var c = state.calc, st = stepTotals(c.seqs), box = $("step-rows"); box.textContent = "";
+    var maxRate = Math.max(0.02, Math.max.apply(null, st.map(function (x) { return x && x.sent ? x.replied / x.sent : 0; }).concat([0])));
+    var totalR = 0;
+    st.forEach(function (x, i) {
+      if (!x) return; totalR += x.replied;
+      var row = el("div", "srow");
+      var lab = el("div", "slab"); lab.appendChild(el("b", "", "Step " + (i + 1))); lab.appendChild(el("span", "", i === 0 ? "first email" : "day " + x.day));
+      row.appendChild(lab);
+      row.appendChild(rateBar(x.sent ? x.replied / x.sent : 0, maxRate, x.replied ? "ok" : ""));
+      row.appendChild(el("div", "sval", x.sent ? fmt(x.replied) + " repl" + (x.replied === 1 ? "y" : "ies") + " · " + pct(x.replied, x.sent) + " of " + fmt(x.sent) : "Not sent yet"));
+      box.appendChild(row);
+    });
+    var note = "";
+    if (totalR && st[0] && st[0].replied === totalR && st[1] && st[1].sent >= 50)
+      note = "Every reply so far came from the first email. Step 2 has gone to " + fmt(st[1].sent) + " people with no replies yet. Watch whether the later steps earn their share of the mailbox limit.";
+    else if (totalR) {
+      var top = 0; st.forEach(function (x, i) { if (x && x.replied > st[top].replied) top = i; });
+      note = "Step " + (top + 1) + " has the most replies (" + fmt(st[top].replied) + " of " + fmt(totalR) + ").";
+    } else note = "No replies yet. This fills in as people answer.";
+    $("step-note").textContent = note;
+  }
+
+  /* 4. Deliverability early warning */
+  function renderHealth() {
+    var c = state.calc, ap = autoPause(), box = $("health"); box.textContent = "";
+    var hist = recentHistory(ap.window_days), hs = 0, hb = 0;
+    hist.forEach(function (h) { hs += n0(h.sent); hb += n0(h.bounced); });
+    var rate = hs ? hb / hs * 100 : null;
+    var tone = rate === null ? "" : rate >= ap.pause_pct ? "t-bad" : rate >= ap.warning_pct ? "t-warn" : rate >= 2 ? "t-warn" : "t-ok";
+    var label = rate === null ? "No recent sends" : rate >= ap.pause_pct ? "At pause level" : rate >= ap.warning_pct ? "Warning" : rate >= 2 ? "Watch" : "Healthy";
+    var head = el("div", "hhead");
+    var big = el("div"); big.appendChild(el("span", "eyebrow", "Mailbox bounces, last " + ap.window_days + " days"));
+    big.appendChild(el("div", "big num", rate === null ? "–" : (rate < 10 ? rate.toFixed(1) : Math.round(rate)) + "%"));
+    big.appendChild(el("span", "note", hs ? fmt(hb) + " of " + fmt(hs) + " sent" : "Daily history fills this in"));
+    head.appendChild(big); head.appendChild(pill(label, tone));
+    box.appendChild(head);
+
+    var scale = Math.max(ap.pause_pct + 2, 8);
+    var list = c.seqs.filter(function (s) { return n0((s.emails || {}).sent) > 0; }).map(function (s) {
+      var e = s.emails || {}; return { s: s, rate: (n0(e.bounced) + n0(e.spam_blocked)) / n0(e.sent) * 100, b: n0(e.bounced), sp: n0(e.spam_blocked), sent: n0(e.sent) };
+    }).sort(function (a, b) { return b.rate - a.rate || b.sent - a.sent; });
+    var withIssue = list.filter(function (x) { return x.rate > 0; }), clean = list.length - withIssue.length;
+    var ul = el("div", "hlist");
+    withIssue.forEach(function (x) {
+      var row = el("div", "srow");
+      var lab = el("div", "slab"); lab.appendChild(el("b", "", str(x.s.name))); row.appendChild(lab);
+      row.appendChild(rateBar(x.rate, scale, x.rate >= ap.warning_pct ? "bad" : "warn", [ap.warning_pct, ap.pause_pct]));
+      row.appendChild(el("div", "sval", pct(x.b + x.sp, x.sent) + " · " + [x.b ? fmt(x.b) + " bounced" : "", x.sp ? fmt(x.sp) + " spam blocked" : ""].filter(Boolean).join(", ")));
+      ul.appendChild(row);
+    });
+    if (withIssue.length) box.appendChild(ul);
+    box.appendChild(el("p", "note", (clean ? fmt(clean) + " sequence" + (clean > 1 ? "s have" : " has") + " no bounces or spam blocks. " : "") +
+      "Apollo warns at " + ap.warning_pct + "% bounces and pauses a sequence at " + ap.pause_pct + "% over " + ap.window_days + " days, once it has sent " + fmt(ap.min_volume) +
+      "." + (list.every(function (x) { return x.sent < ap.min_volume; })
+        ? " Each of your sequences is below that volume, so Apollo won't pause any of them. Bounces still hurt the domain, so treat the lines above as the warning."
+        : "")));
+  }
+
+  /* 3. Daily history */
+  function historyRows() {
+    return state.history.filter(function (h) { return h && /^\d{4}-\d{2}-\d{2}$/.test(str(h.date)); })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  }
+  function recentHistory(n) {
+    var rows = historyRows(); if (!rows.length) return [];
+    var end = rows[rows.length - 1].date, from = addDays(end, -(n - 1));
+    return rows.filter(function (h) { return h.date >= from; });
+  }
+  function renderTrend() {
+    var c = state.calc, box = $("trend"), rows = historyRows();
+    if (!rows.length) {
+      box.textContent = ""; var e = el("div", "empty"); e.appendChild(el("b", "", "No daily history yet")); e.appendChild(document.createTextNode("Each daily refresh adds a day here.")); box.appendChild(e);
+      $("trend-note").textContent = ""; return;
+    }
+    // Last 21 calendar days that have a record, weekends included so gaps are honest.
+    var end = rows[rows.length - 1].date, keys = [];
+    for (var k = addDays(end, -20); k <= end; k = addDays(k, 1)) keys.push(k);
+    var first = rows[0].date; keys = keys.filter(function (k) { return k >= first; });
+    var by = {}; rows.forEach(function (h) { by[h.date] = h; });
+    var W = Math.max(300, box.clientWidth || 640), H = 230, padL = 34, padR = 8, padT = 18, padB = 62;
+    var N = keys.length, ph = H - padT - padB, pw = W - padL - padR, bw = pw / N, barW = Math.max(5, Math.min(30, bw * 0.62));
+    var ymax = 0; keys.forEach(function (k) { var h = by[k] || {}; ymax = Math.max(ymax, n0(h.sent), n0(h.daily_limit)); });
+    ymax = ymax || 10;
+    var step = ymax <= 60 ? 10 : ymax <= 150 ? 25 : ymax <= 300 ? 50 : 100; ymax = Math.ceil(ymax * 1.08 / step) * step;
+    function y(v) { return padT + ph - (v / ymax) * ph; }
+    var NS = "http://www.w3.org/2000/svg";
+    function s(tag, attrs, text) { var e = document.createElementNS(NS, tag); for (var a in attrs) e.setAttribute(a, attrs[a]); if (text !== undefined) e.textContent = text; return e; }
+    var svg = s("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Emails sent per day, with replies and bounces" });
+    svg.style.height = H + "px";
+    for (var g = 0; g <= ymax; g += step) {
+      svg.appendChild(s("line", { x1: padL, x2: W - padR, y1: y(g), y2: y(g), stroke: "var(--line)", "stroke-width": 1 }));
+      svg.appendChild(s("text", { x: padL - 6, y: y(g) + 4, "text-anchor": "end" }, String(g)));
+    }
+    var rowY1 = H - padB + 34, rowY2 = H - padB + 50;
+    svg.appendChild(s("text", { x: padL - 6, y: rowY1, "text-anchor": "end" }, "Rep"));
+    svg.appendChild(s("text", { x: padL - 6, y: rowY2, "text-anchor": "end" }, "Bnc"));
+    var tip = el("div", "tip"); tip.hidden = true;
+    var every = N > 14 && W < 560 ? 3 : N > 10 && W < 760 ? 2 : 1;
+    keys.forEach(function (k, i) {
+      var h = by[k] || {}, cx = padL + bw * i + bw / 2, x = cx - barW / 2, v = n0(h.sent), lim = n0(h.daily_limit);
+      if (v > 0) {
+        var y0 = y(v), hh = Math.max(1, y(0) - y0), r = Math.min(4, barW / 2, hh);
+        svg.appendChild(s("path", { d: "M" + x + "," + y(0) + "V" + (y0 + r) + "Q" + x + "," + y0 + " " + (x + r) + "," + y0 + "H" + (x + barW - r) + "Q" + (x + barW) + "," + y0 + " " + (x + barW) + "," + (y0 + r) + "V" + y(0) + "Z", fill: "var(--bar)" }));
+      }
+      if (lim) svg.appendChild(s("line", { x1: cx - bw / 2 + 2, x2: cx + bw / 2 - 2, y1: y(lim), y2: y(lim), stroke: "var(--muted)", "stroke-width": 1.5, "stroke-dasharray": "3 3" }));
+      if (i % every === 0) svg.appendChild(s("text", { x: cx, y: H - padB + 16, "text-anchor": "middle" }, shortDay(k)));
+      var rp = n0(h.replied), bn = n0(h.bounced);
+      var t1 = s("text", { x: cx, y: rowY1, "text-anchor": "middle" }, rp ? String(rp) : "·"); if (rp) t1.setAttribute("style", "fill: var(--ok); font-weight: 600"); svg.appendChild(t1);
+      var t2 = s("text", { x: cx, y: rowY2, "text-anchor": "middle" }, bn ? String(bn) : "·"); if (bn) t2.setAttribute("style", "fill: var(--bad); font-weight: 600"); svg.appendChild(t2);
+      var hit = s("rect", { x: padL + bw * i, y: padT, width: bw, height: H - padT - 8, fill: "transparent", tabindex: 0 });
+      function show() {
+        tip.textContent = ""; tip.appendChild(el("b", "", parseKey(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })));
+        function row(a, b) { var r = el("div", "row"); r.appendChild(el("span", "", a)); r.appendChild(el("span", "", b)); tip.appendChild(r); }
+        if (!by[k]) row("No record", "");
+        else { row("Sent", fmt(v)); if (lim) row("Daily limit", fmt(lim)); row("Replied", fmt(rp)); row("Bounced", fmt(bn)); if (num(h.queued) !== null) row("Queued at refresh", fmt(h.queued)); }
+        tip.style.left = Math.min(Math.max(cx, 80), W - 80) + "px"; tip.style.top = Math.max(y(Math.max(v, lim)) - 8, 60) + "px"; tip.hidden = false;
+      }
+      hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+      hit.addEventListener("mouseleave", function () { tip.hidden = true; }); hit.addEventListener("blur", function () { tip.hidden = true; });
+      svg.appendChild(hit);
+    });
+    box.textContent = ""; box.appendChild(svg); box.appendChild(tip);
+
+    var wk = recentHistory(7), ws = 0, wr = 0, wb = 0, peak = null;
+    wk.forEach(function (h) { ws += n0(h.sent); wr += n0(h.replied); wb += n0(h.bounced); if (!peak || n0(h.sent) > n0(peak.sent)) peak = h; });
+    $("trend-note").textContent = "Last 7 days: " + fmt(ws) + " sent · " + fmt(wr) + " replied · " + fmt(wb) + " bounced" +
+      (peak && n0(peak.sent) ? " · busiest " + parseKey(peak.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) + " (" + fmt(peak.sent) + ")" : "");
+  }
+
+  function renderSenders() {
+    var s = senders(), box = $("senders");
+    box.hidden = s.length < 2; box.textContent = "";
+    if (s.length < 2) return;
+    s.forEach(function (x, i) {
+      var b = el("button", "chip", str(x.name) || str(x.mailbox) || "Sender " + (i + 1));
+      b.type = "button"; b.id = "sender-" + i;
+      b.setAttribute("aria-pressed", i === state.sender ? "true" : "false");
+      b.addEventListener("click", function () { state.sender = i; render(); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderStartOptions() {
+    var c = state.calc, sel = $("in-start"), prev = sel.value;
+    sel.textContent = "";
+    for (var i = 0; i < SHOW_DAYS; i++) {
+      var free = Math.max(0, c.limit - c.used[i]);
+      var o = el("option", "", dayLabel(c.days[i], c.todayKey) + " · " + fmt(free) + " slots left");
+      o.value = c.days[i]; sel.appendChild(o);
+    }
+    if (prev && c.days.indexOf(prev) !== -1 && c.days.indexOf(prev) < SHOW_DAYS) sel.value = prev;
+    else { var ff = 0; for (var j = 0; j < SHOW_DAYS; j++) if (c.limit - c.used[j] > 0) { ff = j; break; } sel.value = c.days[ff]; }
+  }
+
+  var capTouched = false;
+  function renderPlanner() {
+    var c = state.calc; if (!c) return;
+    var dft = defaults();
+    if (!capTouched) $("in-cap").value = dft.cap;
+    var n = Math.max(0, Math.floor(+$("in-n").value || 0));
+    var cap = Math.max(1, Math.floor(+$("in-cap").value || dft.cap));
+    var startIdx = Math.max(0, c.days.indexOf($("in-start").value));
+    var res = tryBatch(n, cap, dft.waits, startIdx, c.days, c.plan, c.lims), load = res.load;
+    var best = maxFit(cap, dft.waits, startIdx, c.days, c.plan, c.lims);
+
+    var mf = $("maxfit"); mf.textContent = "";
+    mf.appendChild(el("span", "eyebrow", "Largest batch that fits from " + dayLabel(c.days[startIdx], c.todayKey)));
+    mf.appendChild(el("span", "big", (best >= scanCeiling(cap) ? fmt(best) + "+" : fmt(best)) + " contacts"));
+    mf.appendChild(el("span", "note", best
+      ? "at " + fmt(cap) + " a day, every email within " + LAG_OK + " working days of its step day"
+      : "The mailbox is too full around then. Try a later first send day."));
+
+    var v = $("verdict"); v.textContent = "";
+    var lastDay = 0; for (var e = 0; e < load.length; e++) if (load[e]) lastDay = e;
+    if (n > 0) {
+      v.hidden = false;
+      if (!fitsBatch(res)) {
+        v.className = "verdict over";
+        v.appendChild(el("b", "", res.done ? "Runs up to " + res.lag + " working days late" : "Doesn't finish within " + CALC_DAYS + " working days"));
+        v.appendChild(el("span", "", "The live sequences fill the mailbox on some of its days. Lower the batch or the cap, or start later."));
+      } else {
+        v.className = "verdict ok";
+        v.appendChild(el("b", "", res.lag ? "Fits, with some emails up to " + res.lag + " day" + (res.lag > 1 ? "s" : "") + " late" : "Fits on schedule"));
+        v.appendChild(el("span", "", "Last email goes out " + dayLabel(c.days[lastDay], c.todayKey) + "."));
+      }
+    } else v.hidden = true;
+    $("steps-note").textContent = "Follow-ups on days " + offsets(dft.waits).join(", ") + " after the first email.";
+    drawChart(load);
+  }
+
+  function drawChart(load) {
+    var c = state.calc, box = $("chart");
+    var W = Math.max(300, box.clientWidth || 640), H = 240, padL = 34, padR = 8, padT = 22, padB = 26;
+    var N = SHOW_DAYS, days = c.days.slice(0, N);
+    var tot = days.map(function (_, i) { return c.used[i] + (load[i] || 0); });
+    var ymax = Math.max(c.limit, Math.max.apply(null, tot)) * 1.12;
+    var step = ymax <= 60 ? 10 : ymax <= 150 ? 25 : ymax <= 300 ? 50 : ymax <= 600 ? 100 : 200;
+    ymax = Math.ceil(ymax / step) * step;
+    var ph = H - padT - padB, pw = W - padL - padR, bw = pw / N, barW = Math.max(6, Math.min(34, bw * 0.62));
+    function y(v) { return padT + ph - (v / ymax) * ph; }
+    var NS = "http://www.w3.org/2000/svg";
+    function s(tag, attrs, text) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; }
+    var svg = s("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Emails per sending day against the daily limit" });
+    for (var g = 0; g <= ymax; g += step) {
+      svg.appendChild(s("line", { x1: padL, x2: W - padR, y1: y(g), y2: y(g), stroke: "var(--line)", "stroke-width": 1 }));
+      svg.appendChild(s("text", { x: padL - 6, y: y(g) + 4, "text-anchor": "end" }, String(g)));
+    }
+    var tip = el("div", "tip"); tip.hidden = true;
+    days.forEach(function (k, i) {
+      var cx = padL + bw * i + bw / 2, x = cx - barW / 2, base = c.used[i], add = load[i] || 0;
+      var inLimit = add, overBy = 0;
+      function seg(from, h, fill, top) {
+        if (h <= 0) return;
+        var y0 = y(from + h), hh = Math.max(1, y(from) - y0) - (from > 0 ? 2 : 0);
+        var r = top ? Math.min(4, barW / 2, hh) : 0;
+        var path = "M" + x + "," + (y0 + hh) + "V" + (y0 + r) + (r ? "Q" + x + "," + y0 + " " + (x + r) + "," + y0 : "") +
+          "H" + (x + barW - r) + (r ? "Q" + (x + barW) + "," + y0 + " " + (x + barW) + "," + (y0 + r) : "") + "V" + (y0 + hh) + "Z";
+        svg.appendChild(s("path", { d: path, fill: fill }));
+      }
+      seg(0, base, "var(--bar)", !add);
+      seg(base, inLimit, "var(--info)", !overBy);
+      seg(base + inLimit, overBy, "var(--bad)", true);
+      if (c.waiting[i] > 0 && !add) svg.appendChild(s("text", { x: cx, y: y(base) - 6, "text-anchor": "middle" }, "+" + c.waiting[i]));
+      if (i % (N > 10 && W < 520 ? 2 : 1) === 0) svg.appendChild(s("text", { x: cx, y: H - 8, "text-anchor": "middle" }, i === 0 && k === c.todayKey ? "Today" : shortDay(k)));
+      var hit = s("rect", { x: padL + bw * i, y: padT, width: bw, height: ph, fill: "transparent", tabindex: 0 });
+      function show() {
+        tip.textContent = "";
+        tip.appendChild(el("b", "", dayLabel(k, c.todayKey)));
+        function row(a, b) { var r = el("div", "row"); r.appendChild(el("span", "", a)); r.appendChild(el("span", "", b)); tip.appendChild(r); }
+        row(i === 0 && c.sentToday ? "Sent or queued" : "Already queued", fmt(base));
+        if (add) row("New batch", fmt(add));
+        row("Slots left", fmt(Math.max(0, c.limit - base - add)));
+        if (c.waiting[i]) row("Waiting for room", fmt(c.waiting[i]));
+        tip.style.left = Math.min(Math.max(cx, 80), W - 80) + "px";
+        tip.style.top = Math.max(y(base + add) - 8, 60) + "px";
+        tip.hidden = false;
+      }
+      hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
+      hit.addEventListener("mouseleave", function () { tip.hidden = true; }); hit.addEventListener("blur", function () { tip.hidden = true; });
+      svg.appendChild(hit);
+    });
+    svg.appendChild(s("line", { x1: padL, x2: W - padR, y1: y(c.limit), y2: y(c.limit), stroke: "var(--muted)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+    svg.appendChild(s("text", { x: W - padR, y: y(c.limit) - 6, "text-anchor": "end" }, "Limit " + c.limit));
+    box.textContent = ""; box.appendChild(svg); box.appendChild(tip);
+
+    var t = $("fc-table"); t.textContent = "";
+    var hd = el("thead"), hr = el("tr");
+    ["Day", "Already queued", "New batch", "Slots left", "Waiting"].forEach(function (h, i) { hr.appendChild(el("th", i ? "n" : "", h)); });
+    hd.appendChild(hr); t.appendChild(hd);
+    var tb = el("tbody");
+    days.forEach(function (k, i) {
+      var tr = el("tr"), add = load[i] || 0;
+      tr.appendChild(el("td", "", dayLabel(k, c.todayKey)));
+      [c.used[i], add, Math.max(0, c.limit - c.used[i] - add), c.waiting[i]].forEach(function (v) { tr.appendChild(el("td", "n", fmt(v))); });
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+  }
+
+  function renderTable() {
+    var c = state.calc;
+    var FILTERS = [["all", "All"], ["active", "Active"], ["off", "Off"], ["replies", "With replies"]];
+    function inF(s, f) { return f === "all" || (f === "active" && s.active) || (f === "off" && !s.active) || (f === "replies" && n0((s.emails || {}).replied) > 0); }
+    var fb = $("filters"); fb.textContent = "";
+    FILTERS.forEach(function (f) {
+      var b = el("button", "chip", f[1]); b.type = "button"; b.id = "filter-" + f[0];
+      b.setAttribute("aria-pressed", state.filter === f[0] ? "true" : "false");
+      b.appendChild(el("span", "num", c.seqs.filter(function (s) { return inF(s, f[0]); }).length));
+      b.addEventListener("click", function () { state.filter = f[0]; renderTable(); });
+      fb.appendChild(b);
+    });
+
+    var list = c.seqs.filter(function (s) { return inF(s, state.filter); }).sort(function (a, b) {
+      if (!!a.active !== !!b.active) return a.active ? -1 : 1;
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
+    // An Apollo warning that every sequence shares is shown once above the table, not on each row.
+    var shared = c.seqs.length > 1 ? (Array.isArray(c.seqs[0].issues) ? c.seqs[0].issues : []).filter(function (code) {
+      return code !== "sequence_inactive" && c.seqs.every(function (s) { return Array.isArray(s.issues) && s.issues.indexOf(code) !== -1; });
+    }) : [];
+    var sn = $("seq-shared"); sn.hidden = !shared.length;
+    sn.textContent = shared.length ? "Apollo flags every sequence: " + shared.map(function (code) { return ISSUES[code] || code; }).join("; ") + "." : "";
+    var t = $("seq-table"); t.textContent = "";
+    var cols = [["Sequence", ""], ["Status", ""], ["Cap/day", "n"], ["Follow-up days", ""], ["Contacts at step", ""], ["Queued", "n"], ["Delivered", "n"], ["Bounced", "n"], ["Replied", "n"]];
+    var hd = el("thead"), hr = el("tr");
+    cols.forEach(function (x) { hr.appendChild(el("th", x[1], x[0])); });
+    hd.appendChild(hr); t.appendChild(hd);
+    var tb = el("tbody");
+    if (!list.length) {
+      var er = el("tr"), ec = el("td", "empty", "No sequences match this filter."); ec.colSpan = cols.length; er.appendChild(ec); tb.appendChild(er);
+    }
+    var tot = { cap: 0, q: 0, d: 0, b: 0, r: 0 };
+    list.forEach(function (s) {
+      var e = s.emails || {}, tr = el("tr");
+      var nm = el("td", "seq-name");
+      nm.appendChild(link(str(s.name) || "Unnamed sequence", s.url));
+      var created = Date.parse(str(s.created_at));
+      var sub = [created ? "Created " + new Date(created).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "", n0(s.contacts_total) ? fmt(s.contacts_total) + " contacts" : ""].filter(Boolean).join(" · ");
+      if (sub) nm.appendChild(el("span", "", sub));
+      if (safeUrl(s.dashboard_url)) { var ds = el("span"); ds.appendChild(link("Campaign dashboard", s.dashboard_url)); nm.appendChild(ds); }
+      (Array.isArray(s.issues) ? s.issues : []).forEach(function (code) {
+        if (code === "sequence_inactive" || shared.indexOf(code) !== -1) return;
+        nm.appendChild(el("span", "issue", ISSUES[code] || str(code)));
+      });
+      tr.appendChild(nm);
+      var st = el("td"); st.appendChild(s.active ? pill("Active", "t-ok") : pill("Off", "")); tr.appendChild(st);
+      tr.appendChild(el("td", "n", fmt(s.daily_cap)));
+      tr.appendChild(el("td", "days", followDays(s).length ? "Day " + followDays(s).join(" · ") : "–"));
+      var sc = el("td"), sw = el("span", "steps");
+      var steps = Array.isArray(s.steps) ? s.steps.slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); }) : [];
+      steps.forEach(function (x, i) { var sp = el("span", n0(x.active) ? "on" : "", n0(x.active) ? fmt(x.active) : "–"); sp.title = "Step " + (i + 1) + ": " + fmt(n0(x.active)) + " contacts waiting"; sw.appendChild(sp); });
+      sc.appendChild(sw); tr.appendChild(sc);
+      function nc(v, cls) { var td = el("td", "n " + (n0(v) ? (cls || "") : "zero"), fmt(n0(v))); tr.appendChild(td); }
+      nc(e.queued); nc(e.delivered); nc(e.bounced, "bad-n"); nc(e.replied, "ok-n");
+      tb.appendChild(tr);
+      if (s.active) tot.cap += n0(s.daily_cap);
+      tot.q += n0(e.queued); tot.d += n0(e.delivered); tot.b += n0(e.bounced); tot.r += n0(e.replied);
+    });
+    t.appendChild(tb);
+    if (list.length > 1) {
+      var tf = el("tfoot"), fr = el("tr");
+      fr.appendChild(el("td", "", "Total, " + fmt(list.length) + " sequences"));
+      fr.appendChild(el("td"));
+      fr.appendChild(el("td", "n", fmt(tot.cap)));
+      fr.appendChild(el("td")); fr.appendChild(el("td"));
+      [tot.q, tot.d, tot.b, tot.r].forEach(function (v) { fr.appendChild(el("td", "n", fmt(v))); });
+      tf.appendChild(fr); t.appendChild(tf);
+    }
+  }
+
+  function tick() { $("updated").textContent = state.doc && state.doc.updated_at ? "Updated from Apollo " + ago(state.doc.updated_at) : ""; }
+
+  ["in-n", "in-start"].forEach(function (id) { $(id).addEventListener("input", renderPlanner); });
+  $("in-cap").addEventListener("input", function () { capTouched = true; renderPlanner(); });
+  var rz; window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { if (state.calc) { renderPlanner(); renderTrend(); } }, 120); });
+  setInterval(tick, 30000);
+
+  /* ---------- Live data ---------- */
+  function setPill(text, tone) { var p = $("state-pill"); p.textContent = text; p.className = "pill big " + (tone || ""); }
+  var timer = setTimeout(function () { if (!state.loaded) { setPill("Can't reach data yet", "t-warn"); $("meta").textContent = "Sequence data hasn't loaded. It will appear once the connection answers."; } }, 10000);
+  function settle() { if (!state.loaded) { state.loaded = true; clearTimeout(timer); } }
+
+  if (!window.claude || typeof window.claude.use !== "function") {
+    clearTimeout(timer); setPill("Open in Claude", "");
+    $("meta").textContent = "Live sequence data loads only when this page is opened on claude.ai while signed in.";
+    return;
+  }
+  window.claude.use("db").then(function (db) {
+    if (!db) { clearTimeout(timer); setPill("No live data", ""); $("meta").textContent = "Live data isn't available in this view. Open the page on claude.ai while signed in."; return; }
+    db.doc("overview/current").onSnapshot(function (snap) {
+      if (!snap.metadata.fromCache) settle();
+      state.doc = snap.exists ? snap.data() : null;
+      if (state.doc) {
+        render();
+        var stale = Date.now() - (Date.parse(str(state.doc.updated_at)) || 0) > 36 * 3600 * 1000;
+        setPill(stale ? "Data over a day old" : "Live", stale ? "t-warn" : "t-ok");
+      } else if (state.loaded) {
+        setPill("Waiting for data", "t-info");
+        $("meta").textContent = "This page fills in when the outbound-leads skill refreshes it from Apollo.";
+      }
+    }, function () { settle(); setPill("Live updates stopped", "t-bad"); $("updated").textContent = "Reopen the page to reconnect."; });
+    db.collection("history").onSnapshot(function (snap) {
+      state.history = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.date) o.date = d.id; return o; });
+      if (state.calc) { renderHealth(); renderTrend(); }
+    }, function () {});
+  });
+})();
+</script>

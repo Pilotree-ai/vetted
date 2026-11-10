@@ -105,6 +105,8 @@ As soon as you confirm the brief, the skill gives you a link to a **live dashboa
 
 **You can watch it happen.** Each campaign gets its own private page on claude.ai that fills in as the run goes: the current step, what's waiting on you, the totals at each step, and every person with their screening evidence, email and status. It only shows what's happening. Approvals still happen in Slack.
 
+**One overview of every sequence.** A second private page shows all your Apollo sequences together, at one link that never changes. It shows which campaign is getting replies, which step the replies come from, bounces and spam blocks against Apollo's warning levels, and emails sent per day against your mailbox limit. It also lists every sequence with its daily cap, follow-up days, and queued, delivered, bounced and replied counts. And it shows how much of the daily limit is left over the next 15 working days, and how big a new sequence can be before its emails start running late. It refreshes after every daily report and whenever a new sequence goes live, and adds a day to its history each time. Say "show my outbound overview" to refresh it on demand.
+
 **You can stop and pick up later.** Each step saves its output. Come back tomorrow and say "check the Slack approvals for the agency batch", and it carries on from there without repeating anything that costs credits.
 
 ---
@@ -168,6 +170,8 @@ The loop runs as a scheduled Claude cloud routine, so your computer can be off. 
 > check the Slack approvals for the agency batch
 > load the approved groups into Apollo
 > how are my outbound sequences doing?
+> show my outbound overview
+> how much room is left for a new sequence?
 > add a second sender
 > set up the daily outbound report
 > set up the weekly loop
@@ -185,6 +189,8 @@ outbound/
   config.md            your senders, Slack channel, voice rules and holds
   offers/              your saved offers: product, terms, prices and email copy
   contacted.csv        every company and person ever enrolled
+  overview.html        the overview page of every sequence
+  00-overview.json     its link
   campaigns/
     uk-agencies-partner-led/
       brief.md         the confirmed brief

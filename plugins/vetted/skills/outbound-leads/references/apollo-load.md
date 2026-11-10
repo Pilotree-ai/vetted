@@ -6,6 +6,7 @@ Load only approved people (approved groups minus removals). The order below matt
 
 - Re-check every approved email against `outbound/contacted.csv`. Another sender may have loaded the same company since this batch started.
 - Count active sequences (`apollo_emailer_campaigns_search`). If this batch needs a new sequence and the limit in config is reached, stop and tell the user which sequences are active. They decide which to switch off.
+- Mailbox room: if the overview exists (`overview.md`), refresh it and point the user to its "Room for a new sequence" panel with this batch's size and cap. If it shows the batch running more than 2 working days late, say so before enrolling, and suggest a smaller cap or a later start. The other live sequences already use part of the mailbox's daily limit.
 - Volume: if the sender mailbox is new or has sent little, and this batch would start more than about 50 people, warn the user. 60+ cold emails on day one from a new mailbox puts the whole sending domain at risk. Suggest a second connected mailbox for rotation, or a lower daily cap.
 
 ## 2. Create contacts
@@ -83,4 +84,5 @@ On a clear yes, call `apollo_emailer_campaigns_approve` with the sequence id. Ne
 - Append every enrolled person to `outbound/contacted.csv` (status `enrolled`), and every removed one with status `removed`.
 - Reply in the Slack intro thread with what was loaded and removed.
 - Add the batch to the tracker (see `tracking.md`).
+- Refresh the outbound overview (`overview.md`) so the new sequence shows there.
 - Tell the user the result (see "Finishing a run" in SKILL.md).

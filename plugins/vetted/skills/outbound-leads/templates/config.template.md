@@ -28,6 +28,7 @@ senders:
     name: TODO                  # sign-off name, e.g. Sam
     mailbox: TODO               # e.g. sam@acme.com (must be connected in Apollo)
     slack_user_id: ""           # optional, for @-mentions in Slack
+    daily_limit: ""             # optional, this mailbox's own daily limit if it differs from mailbox_daily_limit
 ```
 
 ## Slack
@@ -43,7 +44,8 @@ senders:
 
 - apollo_max_active_sequences: 2   # 2 on lower plans. Raise if your plan allows more
 - sending_schedule_name: Normal Business Hours
-- max_emails_per_day: 50
+- max_emails_per_day: 50          # cap for each new sequence
+- mailbox_daily_limit: 150        # most emails one mailbox sends a day, across all its sequences. Match Settings > Mailboxes in Apollo. A sender can override it with daily_limit
 - contact_location_default: "London, United Kingdom"   # set on every contact so sends follow UK hours
 
 ## Sequence shape
@@ -71,7 +73,7 @@ senders:
 
 ## Live dashboard
 
-- dashboard: on                    # a private claude.ai page per campaign, updated after every step. "off" to skip
+- dashboard: on                    # a private claude.ai page per campaign, updated after every step, plus one overview of every sequence. "off" to skip both
 
 ## Weekly loop
 
