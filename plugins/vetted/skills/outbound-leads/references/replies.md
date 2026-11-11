@@ -48,7 +48,7 @@ The approval channel is `approval_channel_id` from config.
 4. For each new reply:
    - **Who.** `apollo_contacts_search` with `emailer_campaign_ids: [sequence id]`, `per_page` 100, and `fields: [{"contacts": ["id", "first_name", "last_name", "title", "organization_name", {"account": ["domain"]}, "city", "country"]}]`. Page through until the message's `contact_id` is found.
    - **Which email.** `apollo_emailer_campaigns_show` for the sequence (once per sequence per run). The message's `variant.touch_id` matches an `emailer_touches[].id`. Its `emailer_step_id` gives the step position, and its template gives that step's text.
-   - **What they were sent.** For step 1, Vetted sends every person their own email, so read it with `apollo_emailer_campaigns_step_content` (`id` the sequence, `contact_ids: [contact id]`, `emailer_step_id` step 1's id). For later steps, the template text is what they got, with their first name filled in.
+   - **What they were sent.** For step 1, Vetted sends every person their own email, so always read it (never quote the step 1 template, which is only a fallback) with `apollo_emailer_campaigns_step_content` (`id` the sequence, `contact_ids: [contact id]`, `emailer_step_id` step 1's id). For later steps, the template text is what they got, with their first name filled in.
    - **Workspace extras (when `outbound/` exists).** The campaign's `brief.md` reply handling, and the person's screening evidence from `02-screen.json` and `04-research.json`. Leave them out in a scheduled run without a workspace.
 
 ## 2. Post the alert
@@ -75,6 +75,7 @@ Draft rules:
 - Keep to 60 to 120 words, and write it as the next message in the same thread, signed with the sender's name.
 - Deliver what the email they replied to promised, or the next step it asked for. If step 2 offered "a one-page outline", the draft says the outline is coming and asks the one question needed to write it. If step 1 asked for a call, the draft offers two concrete time windows and a short alternative.
 - Because the reply itself is unknown, write it so it still works whether they said "yes", "tell me more" or asked a question. No assumptions about what they said.
+- If the email they replied to asked them to *send* something (formats, a list, a link), assume their reply already contains it. Thank them for it, say what happens next and by when, and ask only for what's missing if their note doesn't cover it. Never ask again for what the email already asked for.
 - Use the brief's reply handling when the workspace has it.
 
 Save the document (`outcome: "pending"`, the Slack `channel_id` and `ts` from the post). Save each document as soon as its alert is posted, so a failed run never posts the same alert twice.
