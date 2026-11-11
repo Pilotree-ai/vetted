@@ -43,6 +43,7 @@ Every call here is read-only and costs no credits.
 5. **Mailbox limit and today's sends.** `apollo_analytics_sync_report` with `date_range` `{"modality": "today"}`, `group_by: ["email_account_id"]` (rows are labelled with the mailbox address), metrics `email_daily_limit`, `num_emails_sent`. Don't group by `send_from_email`: Apollo rejects `email_daily_limit` with it. Query one day only, because over a longer range `email_daily_limit` comes back summed. If Apollo returns no limit, use the sender's `daily_limit` from config, else `mailbox_daily_limit` (default 150).
 6. **Daily history.** `apollo_analytics_sync_report` with `range_start` the day after the last history date in `00-overview.json` (or the earliest sequence's `created_at` on a backfill) and `range_end` today, `group_by: ["smart_datetime_day"]`, metrics `num_emails_sent`, `num_emails_delivered`, `num_emails_replied`, `num_emails_bounced`, `email_daily_limit`. Always include yesterday and today again, because their numbers change during the day.
 7. `apollo_email_accounts_index` to match each sender's mailbox to its Apollo `user_id`.
+8. **A/B tests.** If the page's `tests` collection has any document with `status: "running"` (`ArtifactData` `list`, `collection: "tests"`), one `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["contact_label_ids"]`, metrics `num_contacts_emailed`, `num_contacts_replied`. Update each running test's `results` as "Results" in `ab-tests.md` describes, in the same batch as the other writes.
 
 ## 3. Write it
 
@@ -103,6 +104,8 @@ The page also reads the `replies` collection, which reply alerts write (`replies
 - `partial: true` on today's record. The next refresh rewrites it with the final numbers.
 - History covers the whole Apollo workspace. With more than one sender it isn't split by mailbox.
 
+**Refresh from Apollo button.** The page can also refresh itself: anyone who can edit it gets a Refresh from Apollo button that makes the same read-only calls as section 2 with the viewer's own Apollo connection, then writes `overview/current`, the last two `history` days and running tests' `results` in the same shape. It needs the page published with `capabilities` `{"db": {"rules": [{"path": "", "read": "view", "write": "admin"}]}, "user": {}, "mcp": {"servers": [{"server": "<Apollo connector>", "tools": ["apollo_emailer_campaigns_search", "apollo_emailer_messages_search", "apollo_emailer_campaigns_show", "apollo_analytics_sync_report", "apollo_email_accounts_index"]}]}}`. When this section's fields change, change the page's refresh code to match (`refreshFromApollo` in the template).
+
 The page does every calculation itself (slots left, the forecast, the largest batch that fits, campaign grouping, rates), so the documents hold only facts from Apollo and config.
 
 ## 4. Report in chat
@@ -116,6 +119,7 @@ Outbound overview (<date>)
 - Best campaign: <name>, <replied> replies from <reached> people (<rate>)
 - Needs attention: <sequences the page would mark Hurting deliverability, Not sending, Not working or Lagging, or "none">
 - Replies by step: <s1> · <s2> · <s3> · <s4>
+- Tests: <id>: A <r>/<n>, B <r>/<n>, <verdict from scripts/ab_test.py> (one line per running test, or leave out)
 <url>
 ```
 

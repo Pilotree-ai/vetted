@@ -76,6 +76,10 @@ senders:
 
 - dashboard: on                    # a private claude.ai page per campaign, updated after every step, plus one overview of every sequence. "off" to skip both
 
+## A/B tests
+
+- ab_tests: offer                   # offer (suggest a test at each intake) | off
+
 ## Reply alerts
 
 A Slack alert for every reply, with a draft response. React :+1: or :-1: to record the outcome in Apollo (see `references/replies.md`).

@@ -98,6 +98,8 @@ Reply "pause" to stop the loop, or "resume" to restart it.
 
 8. Save `go_ts`, set the week to `awaiting_go`.
 
+A running A/B test continues every week unchanged (`ab-tests.md`, "In the weekly loop"). If it has become clearly ahead, add its one line to the Go message.
+
 If qualifiers fall short of `weekly_leads`, post the shortfall with the top drop reasons. Never loosen the rules to make up numbers.
 
 ## Phase: remind (Sunday)

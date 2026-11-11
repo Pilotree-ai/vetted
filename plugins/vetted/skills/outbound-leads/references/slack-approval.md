@@ -20,6 +20,7 @@ Day 3: <text>
 Day 7: <text>
 Day 14: <text>
 
+<if the brief has a test:> Test <id>: A "<text>" · B "<text>". Versions alternate, and each email shows its version.
 <if Claude drafted the copy:> This copy is new. React :white_check_mark: here to approve the templates.
 Groups follow below. Nothing is loaded into Apollo until a group has a :white_check_mark:.
 ```
@@ -42,6 +43,7 @@ Why: two co-founders run the agency, 9 staff · <evidence URL>
 *2. ...*
 ```
 
+- With a test, add `Version: A` or `Version: B` under the subject line. If an approver rewrites a closing ask, that person leaves the test (`references/ab-tests.md`).
 - Add a `Flags:` line when there is one (catch-all (warn), site blocked, weaker opener).
 - For unclear leads, add `Unclear: <rule>: <what was or was not found>`.
 - Keep each message under Slack's 5,000-character limit. If a group does not fit, split it into two messages with the same group number and "(part 1 of 2)".

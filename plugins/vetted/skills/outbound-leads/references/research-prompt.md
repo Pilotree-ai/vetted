@@ -68,6 +68,8 @@ For each `send`, fill the step-1 template: first name, opener, short name, sende
 
 This is exactly what the approver sees and what goes into the Apollo override.
 
+**If the brief has a test**, split the people as "Splitting" in `references/ab-tests.md` describes: alternate A and B in posting order, use that version's closing ask in `full_step1`, and store `"variant": "A"` or `"B"` on the person. Nothing else in the email changes between versions.
+
 ## Self-check before saving
 
 Go through each email and fix or drop it if any of these fail. It is much cheaper to catch them now than in Slack.
@@ -78,6 +80,7 @@ Go through each email and fix or drop it if any of these fail. It is much cheape
 - No claim about a result nobody has checked (their rankings, traffic, what a tool or AI assistant says about them).
 - No prices in step 1 unless the brief allows it.
 - Ends with the opt-out line from config.
+- With a test: each email's closing ask is exactly its version's text, and A and B alternate.
 - British spelling (organise, optimise, colour, programme where relevant).
 
 If a site was bot-blocked and the opener is weak, keep it but add the flag `site blocked, weaker opener` so the approver can decide.

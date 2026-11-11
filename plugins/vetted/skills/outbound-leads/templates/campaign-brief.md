@@ -20,6 +20,7 @@ Pull out whatever the sentence gives you for each field. Do not invent values fo
 | opener_pattern | optional shape for the opener, e.g. the brand example's buyer-question pattern |
 | email_copy | pasted template, a saved example name, or "draft it" |
 | reply_handling | optional: what to do with yes, call, price and no replies |
+| test | optional A/B test of one part of email 1, usually the closing ask (`references/ab-tests.md`) |
 | sender | which sender key from config |
 | batch_size | target number of approved leads |
 | batch_label | e.g. "Agency pilot batch 3". Suggest one if missing |
@@ -45,6 +46,8 @@ Ask in one go, with suggested defaults, using AskUserQuestion when available. Th
 - **Offer and copy.** If no template is given, list the user's saved offers in `outbound/offers/` and offer to use one, or draft new copy from the offer, using `templates/example-pilot-offer.md` or `templates/example-free-audit.md` as the shape. A saved offer brings its own filters, drop rules, opener pattern, four steps and reply handling, so the brief can just reference it and note any changes. Drafted copy gets approved in the Slack intro message. Once it has been approved, offer to save it to `outbound/offers/<name>.md` so it can be reused.
 - **Qualification rule.** The rule you wrote in step 2. Ask "is this what you meant?"
 - **Unclear leads.** Default from config is hold for review. Mention it, do not ask unless the brief suggests otherwise.
+
+- **A/B test.** Follow "At intake" in `references/ab-tests.md`: continue a running test for this campaign, use a decided test's winner, or offer a new test of the closing ask with a suggested version B. The user can decline.
 
 Do not ask about things config already answers (voice, Slack channel, sequence shape).
 
@@ -94,6 +97,14 @@ Source: <pasted | saved offer: outbound/offers/<name>.md | draft for Slack appro
 
 ## Reply handling
 <from the example, or "none set">
+
+## Test
+<"none", or:>
+- Test id: <id> (<new | continuing, A <n> / B <n> people so far>)
+- What changes: <closing ask of the first email>
+- A: "<current text, exactly>"
+- B: "<challenger text, exactly>"
+- Split: alternate A and B in posting order
 
 ## Batch
 - Target approved leads: <n>

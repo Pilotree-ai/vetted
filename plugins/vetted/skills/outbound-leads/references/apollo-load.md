@@ -15,7 +15,7 @@ Load only approved people (approved groups minus removals). The order below matt
 
 - `first_name`, `last_name`, `email`, `title`, `organization_name`, `website_url`
 - `present_raw_address`: "<City>, United Kingdom" (or the brief's country). Use the person's city from Apollo if known, otherwise `contact_location_default` from config. Without this, Apollo may guess a US time zone and the email waits for US business hours.
-- `label_names`: `["<batch_label>"]`
+- `label_names`: `["<batch_label>"]`. Apollo doesn't reliably keep these, so step 7 adds the lists again with the list tool.
 
 Bulk create updates existing contacts that match by email, and that overwrite cannot be undone. Check the returned list and note each `contact_id`. Report any contacts not matched to Apollo's person or company data in one line. Do not enrich them again.
 
@@ -80,6 +80,8 @@ Switch it on?
 On a clear yes, call `apollo_emailer_campaigns_approve` with the sequence id. Never switch it on without that yes.
 
 ## 7. Record
+
+- **Lists.** Add every enrolled contact to the batch's list with `apollo_labels_add_entity_ids_to_label_names` (`modality: "contacts"`, `label_names: ["<batch_label>"]`). With a test, also add the A and B people to their test lists and record the test on the overview, as "At load" in `references/ab-tests.md` describes. Then check the list counts with `apollo_labels_index`.
 
 - Append every enrolled person to `outbound/contacted.csv` (status `enrolled`), and every removed one with status `removed`.
 - Reply in the Slack intro thread with what was loaded and removed.

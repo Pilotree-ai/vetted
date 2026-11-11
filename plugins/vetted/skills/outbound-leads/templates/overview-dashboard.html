@@ -175,6 +175,13 @@ td.rate .num { font-size: 12.5px; }
 .hhead > div { display: grid; gap: 2px; }
 .pad > .note { margin: 0; }
 
+/* A/B tests */
+.trow { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(110px, 160px) minmax(0, auto); gap: 6px 12px; align-items: center; }
+.trow .tkey { font-family: var(--font-data); font-weight: 600; font-size: 13px; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; background: var(--paper); border: 1px solid var(--line); }
+.trow .ttext { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .trow { grid-template-columns: 28px minmax(0, 1fr); } .trow .rbar, .trow .sval { grid-column: 2; } .trow .sval { text-align: left; } }
+.tests-rows { display: grid; gap: 10px; }
+
 /* Verdicts */
 .verdicts { display: grid; padding: 4px 0 6px; }
 .vrow { display: grid; gap: 4px; padding: 12px 16px; border-top: 1px solid var(--line); min-width: 0; }
@@ -189,6 +196,11 @@ td.rate .num { font-size: 12.5px; }
 
 .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
 .empty b { color: var(--ink); font-weight: 500; display: block; margin-bottom: 4px; }
+.btn { font: inherit; font-size: 12.5px; font-weight: 500; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--ink); }
+.btn:disabled { color: var(--muted); cursor: progress; }
+.refresh-msg { max-width: 34ch; text-align: right; }
+.refresh-msg.bad { color: var(--bad); }
 footer { color: var(--muted); font-size: 12.5px; display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; }
 footer p { margin: 0; max-width: 90ch; }
 @media (prefers-reduced-motion: no-preference) { .chip, tbody tr { transition: background-color .12s ease; } }
@@ -207,6 +219,8 @@ footer p { margin: 0; max-width: 90ch; }
     <div class="status">
       <span class="pill big" id="state-pill">Connecting</span>
       <span class="updated" id="updated"></span>
+      <button class="btn" id="refresh" type="button" hidden>Refresh from Apollo</button>
+      <span class="updated refresh-msg" id="refresh-msg" role="status" hidden></span>
     </div>
   </header>
 
@@ -279,6 +293,14 @@ footer p { margin: 0; max-width: 90ch; }
     <div class="scroll"><table id="camp-table"><tbody><tr><td class="empty">Campaigns appear once sequence data has loaded.</td></tr></tbody></table></div>
   </section>
 
+  <section class="panel" aria-labelledby="t-h">
+    <div class="panel-h">
+      <h2 id="t-h">A/B tests</h2>
+      <span class="note">Two versions of one part of the first email, alternated across each batch</span>
+    </div>
+    <div class="verdicts" id="tests"><div class="empty"><b>No tests yet</b>Vetted offers one when the next batch's brief is confirmed.</div></div>
+  </section>
+
   <div class="grid2">
     <section class="panel" aria-labelledby="step-h">
       <div class="panel-h"><h2 id="step-h">Replies by step</h2><span class="note">All sequences</span></div>
@@ -320,7 +342,7 @@ footer p { margin: 0; max-width: 90ch; }
   <footer>
     <p><b>Queued</b> is the emails Apollo has scheduled now: one per active contact, their next step. <b>Delivered</b>, <b>Bounced</b> and <b>Replied</b> count emails. <b>People emailed</b> is how many got the first email. <b>Reply rate</b> is replies divided by people emailed. <b>Slots left</b> is the mailbox's daily limit from Apollo, minus what it has sent today and what the live sequences will send.</p>
     <p>A <b>campaign</b> groups the batches of one offer by sequence name ("UK agencies - US batch 2" belongs to "UK agencies"). Daily activity comes from Apollo's analytics, one record per day.</p>
-    <p>The forecast is an estimate. It assumes follow-ups go out on their step day (weekdays only), each sequence stays within its own cap, and the mailbox never sends more than its daily limit. Anything over the limit waits for the next day. Read-only. Refreshed from Apollo by the outbound-leads skill.</p>
+    <p>The forecast is an estimate. It assumes follow-ups go out on their step day (weekdays only), each sequence stays within its own cap, and the mailbox never sends more than its daily limit. Anything over the limit waits for the next day. Refreshed from Apollo every morning by the outbound-leads skill. Anyone who can edit this page can also refresh it with Refresh from Apollo, which only reads from Apollo, using their own Apollo connection.</p>
   </footer>
 </div>
 
@@ -439,7 +461,7 @@ footer p { margin: 0; max-width: 90ch; }
     schedule_owned_by_another_user: "Sending schedule belongs to another Apollo user",
     email_steps_without_approved_template: "A step has no approved email"
   };
-  var state = { doc: null, history: [], replies: [], sender: 0, filter: "all", loaded: false, calc: null };
+  var state = { doc: null, history: [], replies: [], tests: [], sender: 0, filter: "all", loaded: false, calc: null };
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -627,6 +649,7 @@ footer p { margin: 0; max-width: 90ch; }
     renderVerdicts();
     renderReplies();
     renderCampaigns();
+    renderTests();
     renderSteps();
     renderHealth();
     renderTrend();
@@ -682,6 +705,77 @@ footer p { margin: 0; max-width: 90ch; }
         (t ? " · " + new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "")));
       if (str(r.step_summary)) row.appendChild(el("p", "vnotes", "That email: " + r.step_summary));
       if (r.outcome !== "pending" && str(r.marked_by)) row.appendChild(el("p", "vnotes", "Marked by " + r.marked_by + (str(r.apollo_list) ? " · Apollo list: " + r.apollo_list : "")));
+      box.appendChild(row);
+    });
+  }
+
+  /* A/B tests: same method as scripts/ab_test.py, so chat and page agree */
+  var AB_MIN = 30, AB_CLEAR = 0.95, AB_LEAN = 0.80;
+  function lgamma(z) {
+    var c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+      12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+    if (z < 0.5) return Math.log(Math.PI / Math.abs(Math.sin(Math.PI * z))) - lgamma(1 - z);
+    z -= 1; var x = c[0]; for (var i = 1; i < 9; i++) x += c[i] / (z + i);
+    var t = z + 7.5; return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+  }
+  function betaLogPdf(x, a, b) { return lgamma(a + b) - lgamma(a) - lgamma(b) + (a - 1) * Math.log(x) + (b - 1) * Math.log(1 - x); }
+  function chanceBBeatsA(na, ra, nb, rb) {
+    var aa = 1 + ra, ab = 1 + na - ra, ba = 1 + rb, bb = 1 + nb - rb, G = 4000, h = 1 / G, cdf = 0, tot = 0;
+    for (var i = 0; i < G; i++) {
+      var x = (i + 0.5) * h, pa = Math.exp(betaLogPdf(x, aa, ab)) * h, pb = Math.exp(betaLogPdf(x, ba, bb)) * h;
+      tot += pb * (cdf + pa / 2); cdf += pa;
+    }
+    return Math.min(1, Math.max(0, tot));
+  }
+  function abVerdict(na, ra, nb, rb) {
+    if (na < AB_MIN || nb < AB_MIN) return { text: "Too early", tone: "", p: null };
+    var p = chanceBBeatsA(na, ra, nb, rb);
+    if (p >= AB_CLEAR) return { text: "B is clearly ahead", tone: "t-ok", p: p, winner: "B" };
+    if (1 - p >= AB_CLEAR) return { text: "A is clearly ahead", tone: "t-ok", p: p, winner: "A" };
+    if (p >= AB_LEAN) return { text: "Leaning B", tone: "t-info", p: p };
+    if (1 - p >= AB_LEAN) return { text: "Leaning A", tone: "t-info", p: p };
+    return { text: "No clear difference", tone: "", p: p };
+  }
+  function renderTests() {
+    var box = $("tests"); box.textContent = "";
+    var order = { running: 0, decided: 1, stopped: 2 };
+    var list = state.tests.filter(function (t) { return t && typeof t === "object" && Array.isArray(t.variants); }).slice()
+      .sort(function (a, b) { return (order[a.status] || 0) - (order[b.status] || 0) || str(b.started_at).localeCompare(str(a.started_at)); });
+    if (!list.length) {
+      var e = el("div", "empty"); e.appendChild(el("b", "", "No tests yet"));
+      e.appendChild(document.createTextNode("Vetted offers one when the next batch's brief is confirmed.")); box.appendChild(e); return;
+    }
+    list.forEach(function (t) {
+      var res = t.results || {}, A = res.A || {}, B = res.B || {};
+      var na = n0(A.emailed), ra = n0(A.replied), nb = n0(B.emailed), rb = n0(B.replied);
+      var v = abVerdict(na, ra, nb, rb), row = el("div", "vrow");
+      var head = el("div", "vhead");
+      if (t.status === "decided") head.appendChild(pill("Decided: " + str((t.decision || {}).winner) + " is the default", "t-ok"));
+      else if (t.status === "stopped") head.appendChild(pill("Stopped", ""));
+      else head.appendChild(pill(v.text, v.tone));
+      head.appendChild(el("b", "", str(t.campaign) || str(t.id)));
+      head.appendChild(el("span", "note", [str(t.element), str(t.id)].filter(Boolean).join(" · ")));
+      row.appendChild(head);
+      var maxRate = Math.max(0.05, na ? ra / na : 0, nb ? rb / nb : 0);
+      var rows = el("div", "tests-rows");
+      t.variants.forEach(function (va) {
+        var r = va.key === "B" ? B : A, n = n0(r.emailed), k = n0(r.replied);
+        var ids = Array.isArray(va.contact_ids) ? va.contact_ids : [];
+        var interested = state.replies.filter(function (x) { return x.outcome === "interested" && ids.indexOf(x.contact_id) !== -1; }).length;
+        var tr = el("div", "trow");
+        tr.appendChild(el("span", "tkey", str(va.key)));
+        tr.appendChild(el("p", "ttext", "“" + str(va.text) + "”"));
+        tr.appendChild(rateBar(n ? k / n : 0, maxRate, k ? "ok" : ""));
+        tr.appendChild(el("div", "sval", fmt(k) + " of " + fmt(n) + (n ? " · " + pct(k, n) : "") + (interested ? " · " + fmt(interested) + " interested" : "")));
+        rows.appendChild(tr);
+      });
+      row.appendChild(rows);
+      var note;
+      if (t.status === "decided") note = "Version " + str((t.decision || {}).winner) + " became the default" + (str((t.decision || {}).decided_at) ? " on " + new Date(Date.parse(t.decision.decided_at)).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "") + ".";
+      else if (v.p === null) note = "Needs at least " + AB_MIN + " people per version before it can be judged (A " + fmt(na) + ", B " + fmt(nb) + "). Most tests need 100 to 200 per version.";
+      else if (v.winner) note = "Chance B is better: " + Math.round(v.p * 100) + "%. Vetted proposes making " + v.winner + " the default at the next batch, and you confirm in chat.";
+      else note = "Chance B is better: " + Math.round(v.p * 100) + "%. Not clear yet, so the test keeps running in the next batch.";
+      row.appendChild(el("p", "vnotes", note + (Array.isArray(t.batches) && t.batches.length ? " Batches: " + t.batches.join(", ") + "." : "")));
       box.appendChild(row);
     });
   }
@@ -1196,6 +1290,195 @@ footer p { margin: 0; max-width: 90ch; }
   var rz; window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { if (state.calc) { renderPlanner(); renderTrend(); } }, 120); });
   setInterval(tick, 30000);
 
+  /* ---------- Refresh from Apollo ----------
+     Same collection and shape as references/overview.md sections 2 and 3, run in the page
+     with the viewer's own Apollo connection. Read-only Apollo calls; nothing is written
+     until every call has answered. */
+  var APOLLO = "Apollo.io";
+  var refreshing = false, lastRefreshAt = 0;
+  var MON = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+  function pad2(n) { return ("0" + n).slice(-2); }
+  function toNum(v) { var n = parseFloat(String(v === undefined || v === null ? "" : v).replace(/,/g, "")); return isFinite(n) ? n : 0; }
+  // Apollo's analytics answer with a markdown table; rows come back as arrays of cell text.
+  function mdRows(summary) {
+    var lines = String(summary || "").split("\n").filter(function (l) { return /^\s*\|/.test(l); });
+    if (lines.length < 3) return [];
+    return lines.slice(2).map(function (l) {
+      return l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+    });
+  }
+  function dayKeyFromLabel(label) {
+    var m = /([A-Z][a-z]{2}) (\d{1,2}) (\d{4})/.exec(String(label));
+    return m && MON[m[1]] ? m[3] + "-" + pad2(MON[m[1]]) + "-" + pad2(+m[2]) : null;
+  }
+  function asObj(p) {
+    if (typeof p === "string") { try { return JSON.parse(p); } catch (e) { return { summary: p }; } }
+    return p && typeof p === "object" ? p : {};
+  }
+  function apollo(mcp, tool, input) {
+    function once() { return mcp.callTool(APOLLO, tool, input, { cache: false }).then(function (r) { return asObj(r && r.payload); }); }
+    return once().catch(function (e) {
+      if (!e || !e.retryable) throw e;
+      var wait = Math.min(60000, num(e.retryAfterMs) || 800 + Math.random() * 1200);
+      return new Promise(function (res) { setTimeout(res, wait); }).then(once);
+    });
+  }
+  async function pool(items, size, fn) {
+    var i = 0;
+    async function worker() { while (i < items.length) { var it = items[i++]; await fn(it); } }
+    var ws = []; for (var k = 0; k < Math.min(size, items.length); k++) ws.push(worker());
+    await Promise.all(ws);
+  }
+  function refreshError(e) {
+    var code = e && e.code;
+    if (code === "needs_reauth") return "Apollo needs reconnecting: claude.ai Settings > Connectors. Nothing was changed.";
+    if (code === "server_not_connected" || code === "selection_required") return "Connect Apollo in claude.ai Settings > Connectors to refresh from here. Nothing was changed.";
+    if (code === "not_in_manifest" || code === "approval_required" || code === "consent_required") return "Allow Apollo for this page when claude.ai asks, then try again. Nothing was changed.";
+    if (code === "blocked_by_policy") return "Your organisation blocks this Apollo tool. Nothing was changed.";
+    if (code === "tool_error") return "Apollo couldn't answer one of the reads" + (e.message ? ": " + String(e.message).slice(0, 120) : "") + ". Nothing was changed.";
+    if (code === "save_failed") return "Couldn't save the refreshed numbers. You may only have view access.";
+    if (code === "empty") return "Apollo returned no sequences, so nothing was changed.";
+    if (code === "not_granted" || code === "capability_disabled" || code === "capability_removed") return "Refreshing isn't available in this view. Open the page on claude.ai.";
+    return "Apollo didn't answer. Nothing was changed. Try again in a minute.";
+  }
+  function setRefreshUI(mode, text) {
+    var b = $("refresh"), m = $("refresh-msg");
+    b.disabled = mode === "busy";
+    b.textContent = mode === "busy" ? "Refreshing" : "Refresh from Apollo";
+    m.hidden = !text; m.textContent = text || ""; m.className = "updated refresh-msg" + (mode === "error" ? " bad" : "");
+  }
+  function setupRefresh() {
+    Promise.all([window.claude.use("mcp"), window.claude.use("user")]).then(function (r) {
+      var mcp = r[0], user = r[1];
+      if (!mcp || !user) return;
+      return user.canEdit().then(function (ok) {
+        if (!ok) return;
+        $("refresh").hidden = false;
+        $("refresh").addEventListener("click", function () { refreshFromApollo(mcp); });
+      });
+    }).catch(function () {});
+  }
+  async function refreshFromApollo(mcp) {
+    if (refreshing) return;
+    if (Date.now() - lastRefreshAt < 60000) { setRefreshUI("idle", "Refreshed under a minute ago."); return; }
+    refreshing = true; setRefreshUI("busy", "Reading sequences from Apollo");
+    try {
+      var prev = state.doc || {}, tz = str(prev.timezone) || "Europe/London";
+      var todayKey = localKey(new Date().toISOString(), tz);
+
+      var seqs = [], page = 1, pages = 1;
+      do {
+        var sr = await apollo(mcp, "apollo_emailer_campaigns_search", { per_page: "100", page: String(page) });
+        (sr.emailer_campaigns || []).forEach(function (c) { if (c && !c.archived) seqs.push(c); });
+        pages = (sr.pagination && sr.pagination.total_pages) || 1; page++;
+      } while (page <= pages && page <= 10);
+      if (!seqs.length && (prev.sequences || []).length) throw { code: "empty" };
+
+      var counts = {}, shows = {}, done = 0;
+      var total = seqs.length + seqs.filter(function (c) { return c.active; }).length + 4;
+      function step(label) { done++; setRefreshUI("busy", label + " (" + done + " of " + total + ")"); }
+      await pool(seqs, 4, async function (c) {
+        var m = await apollo(mcp, "apollo_emailer_messages_search", { emailer_campaign_id: c.id, display_mode: "metadata_mode" });
+        var o = {}; (m.status_counts || []).forEach(function (x) { if (x && x.status) o[x.status] = toNum(x.count); });
+        counts[c.id] = o; step("Reading sequences");
+        if (c.active) { shows[c.id] = await apollo(mcp, "apollo_emailer_campaigns_show", { id: c.id }); step("Reading sequences"); }
+      });
+
+      var byStep = mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "all_time" }, group_by: ["emailer_step_id"],
+        metrics: ["num_emails_sent", "num_emails_replied", "num_emails_bounced"] })).summary);
+      step("Reading replies by step");
+      var todayRows = mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "today" }, group_by: ["email_account_id"],
+        metrics: ["email_daily_limit", "num_emails_sent"] })).summary);
+      step("Reading today's sends");
+      var hr = historyRows(), firstKey = seqs.map(function (c) { return localKey(c.created_at, tz); }).filter(Boolean).sort()[0] || todayKey;
+      var start = hr.length ? addDays(hr[hr.length - 1].date, -1) : firstKey;
+      if (start > todayKey) start = todayKey;
+      var dayRows = mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { range_start: start, range_end: todayKey }, group_by: ["smart_datetime_day"],
+        metrics: ["num_emails_sent", "num_emails_delivered", "num_emails_replied", "num_emails_bounced", "email_daily_limit"] })).summary);
+      step("Reading daily activity");
+      var accounts = (await apollo(mcp, "apollo_email_accounts_index", {})).email_accounts || [];
+      step("Reading mailboxes");
+      var running = state.tests.filter(function (t) { return t && t.status === "running" && Array.isArray(t.variants); });
+      var testWrites = [];
+      if (running.length) {
+        var byList = {};
+        mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "all_time" }, group_by: ["contact_label_ids"],
+          metrics: ["num_contacts_emailed", "num_contacts_replied"] })).summary).forEach(function (r) { byList[r[0]] = { emailed: toNum(r[1]), replied: toNum(r[2]) }; });
+        running.forEach(function (t) {
+          var results = { updated_at: new Date().toISOString() };
+          t.variants.forEach(function (va) { results[va.key] = byList[str(va.list)] || { emailed: 0, replied: 0 }; });
+          testWrites.push({ id: t.id, results: results });
+        });
+      }
+
+      // Build the documents (same fields as overview.md section 3).
+      var stepMap = {};
+      byStep.forEach(function (r) {
+        var i = r[0].lastIndexOf(": Step "); if (i < 0) return;
+        stepMap[r[0].slice(0, i) + "#" + parseInt(r[0].slice(i + 7), 10)] = { sent: toNum(r[1]), replied: toNum(r[2]), bounced: toNum(r[3]) };
+      });
+      var prevById = {}; (prev.sequences || []).forEach(function (s) { if (s && s.id) prevById[s.id] = s; });
+      var ap = null, queuedTotal = 0;
+      var outSeqs = seqs.map(function (c) {
+        var sh = shows[c.id] || {}, cnt = counts[c.id] || {}, old = prevById[c.id] || {}, camp = sh.emailer_campaign || {};
+        var activeAt = {}; (Array.isArray(sh.emailer_steps) ? sh.emailer_steps : []).forEach(function (x) { activeAt[x.position] = n0((x.counts || {}).active); });
+        var steps = (Array.isArray(c.emailer_steps) ? c.emailer_steps : []).slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); }).map(function (x) {
+          var st = stepMap[c.name + "#" + x.position] || {};
+          return { position: x.position, wait: n0(x.wait_time), active: c.active ? (activeAt[x.position] || 0) : 0, sent: n0(st.sent), replied: n0(st.replied), bounced: n0(st.bounced) };
+        });
+        var cs = {}, ct = 0, raw = camp.contact_statuses || {};
+        Object.keys(raw).forEach(function (k) { if (typeof raw[k] === "number") { cs[k] = raw[k]; ct += raw[k]; } });
+        if (!ap && camp.auto_pause_config) ap = camp.auto_pause_config;
+        queuedTotal += n0(cnt.scheduled);
+        var o = {
+          id: c.id, name: str(c.name), url: str(c.sequence_url) || "https://app.apollo.io#/sequences/" + c.id,
+          active: !!c.active, archived: false, owner_user_id: str(c.user_id), created_at: str(c.created_at), last_used_at: str(c.last_used_at),
+          daily_cap: n0(c.max_emails_per_day), steps: steps,
+          emails: { queued: n0(cnt.scheduled), delayed: n0(cnt.delayed), sent: n0(cnt.sent), delivered: n0(cnt.delivered), bounced: n0(cnt.bounced),
+            replied: n0(cnt.replied), spam_blocked: n0(cnt.spam_blocked), interested: n0(cnt.demoed) },
+          reached: steps.length ? steps[0].sent : n0(c.unique_delivered),
+          contacts_total: ct || n0(old.contacts_total), contact_statuses: ct ? cs : (old.contact_statuses || {}),
+          issues: sh.sending_diagnostics && Array.isArray(sh.sending_diagnostics.issues) ? sh.sending_diagnostics.issues : (Array.isArray(old.issues) ? old.issues : []),
+          dashboard_url: str(old.dashboard_url)
+        };
+        if (str(old.campaign)) o.campaign = old.campaign;
+        return o;
+      });
+      var today = {}; todayRows.forEach(function (r) { today[String(r[0]).toLowerCase()] = { limit: toNum(r[1]), sent: toNum(r[2]) }; });
+      var senders = (Array.isArray(prev.senders) && prev.senders.length ? prev.senders : [{}]).map(function (s) {
+        var o = Object.assign({}, s), mb = str(s.mailbox).toLowerCase();
+        var acc = accounts.filter(function (a) { return str(a.email).toLowerCase() === mb; })[0];
+        if (acc && acc.user_id) o.user_id = acc.user_id;
+        var t = today[mb]; if (t && t.limit) { o.daily_limit = t.limit; o.limit_source = "apollo"; }
+        o.sent_today = t ? t.sent : 0;
+        return o;
+      });
+      var doc = Object.assign({}, prev, {
+        updated_at: new Date().toISOString(), senders: senders, sequences: outSeqs,
+        auto_pause: ap ? { warning_pct: toNum(ap.warning_threshold_pct) || 4, pause_pct: toNum(ap.auto_pause_threshold_pct) || 6,
+          window_days: toNum(ap.evaluation_window_days) || 7, min_volume: toNum(ap.min_volume) || 200 } : prev.auto_pause
+      });
+      var hist = dayRows.map(function (r) {
+        var k = dayKeyFromLabel(r[0]); if (!k) return null;
+        var h = { date: k, sent: toNum(r[1]), delivered: toNum(r[2]), replied: toNum(r[3]), bounced: toNum(r[4]), partial: k === todayKey };
+        if (toNum(r[5])) h.daily_limit = toNum(r[5]);
+        if (k === todayKey) h.queued = queuedTotal;
+        return h;
+      }).filter(Boolean);
+
+      setRefreshUI("busy", "Saving");
+      try {
+        await state.db.doc("overview/current").set(doc);
+        for (var j = 0; j < hist.length; j++) await state.db.doc("history/" + hist[j].date).set(hist[j]);
+        for (var w = 0; w < testWrites.length; w++) await state.db.doc("tests/" + testWrites[w].id).update({ results: testWrites[w].results });
+      } catch (e) { throw { code: "save_failed" }; }
+      lastRefreshAt = Date.now();
+      setRefreshUI("idle", "Refreshed from Apollo just now.");
+    } catch (e) {
+      setRefreshUI("error", refreshError(e));
+    } finally { refreshing = false; }
+  }
+
   /* ---------- Live data ---------- */
   function setPill(text, tone) { var p = $("state-pill"); p.textContent = text; p.className = "pill big " + (tone || ""); }
   var timer = setTimeout(function () { if (!state.loaded) { setPill("Can't reach data yet", "t-warn"); $("meta").textContent = "Sequence data hasn't loaded. It will appear once the connection answers."; } }, 10000);
@@ -1207,6 +1490,8 @@ footer p { margin: 0; max-width: 90ch; }
     return;
   }
   window.claude.use("db").then(function (db) {
+    state.db = db;
+    if (db) setupRefresh();
     if (!db) { clearTimeout(timer); setPill("No live data", ""); $("meta").textContent = "Live data isn't available in this view. Open the page on claude.ai while signed in."; return; }
     db.doc("overview/current").onSnapshot(function (snap) {
       if (!snap.metadata.fromCache) settle();
@@ -1220,6 +1505,10 @@ footer p { margin: 0; max-width: 90ch; }
         $("meta").textContent = "This page fills in when the outbound-leads skill refreshes it from Apollo.";
       }
     }, function () { settle(); setPill("Live updates stopped", "t-bad"); $("updated").textContent = "Reopen the page to reconnect."; });
+    db.collection("tests").onSnapshot(function (snap) {
+      state.tests = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.id) o.id = d.id; return o; });
+      if (state.calc) renderTests();
+    }, function () {});
     db.collection("replies").onSnapshot(function (snap) {
       state.replies = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.message_id) o.message_id = d.id; return o; });
       if (state.calc) render();

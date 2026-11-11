@@ -41,6 +41,8 @@ Also read `references/lessons-learned.md` once at the start of a run. It is shor
 
 **Outbound overview.** Besides the per-campaign dashboards, each workspace has one overview page of every Apollo sequence: queued, delivered, bounced and replied per sequence, follow-up days, active sequences, and the mailbox's daily slots left for new sequences (`references/overview.md`). Refresh it at the end of every status check and after a sequence goes live, and whenever the user asks how their sequences are doing or how much room is left. There is one per workspace, kept in `outbound/00-overview.json`. Never create a second one.
 
+**A/B tests.** A batch can test one change to the first email, usually the closing ask. The two versions alternate across the batch, each person is put on an Apollo list for their version, and the overview shows which version gets more replies. A winner is only proposed once it's clearly ahead, and the default only changes when the user confirms in chat (`references/ab-tests.md`).
+
 **Reply alerts.** When anyone replies to a sequence, post an alert in the approval channel with who replied, which email they answered and a draft response, and record the approver's 👍 or 👎 as an Apollo list on the contact (`references/replies.md`). A routine runs this every two hours on weekdays. Vetted never replies to a prospect itself.
 
 The run can be resumed. Each step writes its output to the campaign folder, so if the user comes back later ("carry on with the agency batch", "check the Slack ticks"), read the brief and the latest working file and pick up from the next step. Do not redo steps that cost credits.
