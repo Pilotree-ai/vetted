@@ -41,6 +41,8 @@ New replies: Priya Shah (Hart & Shah), ... (check <sender>'s inbox)
 Bounces: ... (catch-all flagged: <n>)
 ```
 
+If reply alerts are on (`replies.md`), new replies already have their own alert. In the summary, list them by name with a link to their alert, plus how many are still waiting for a 👍 or 👎.
+
 Order the summary: replies first, then bounces, then totals. Then update each batch's canvas section and the ledger.
 
 Finally, refresh the outbound overview (`overview.md`) and add its link as the last line of the Slack summary: `Overview: <url>`. The status check has already fetched most of the sequence data, so reuse it rather than calling Apollo twice.

@@ -175,6 +175,18 @@ td.rate .num { font-size: 12.5px; }
 .hhead > div { display: grid; gap: 2px; }
 .pad > .note { margin: 0; }
 
+/* Verdicts */
+.verdicts { display: grid; padding: 4px 0 6px; }
+.vrow { display: grid; gap: 4px; padding: 12px 16px; border-top: 1px solid var(--line); min-width: 0; }
+.vrow:first-child { border-top: 0; }
+.vhead { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.vhead a, .vhead b { font-weight: 500; overflow-wrap: anywhere; }
+.vwhy, .vtodo, .vnotes { margin: 0; max-width: 90ch; }
+.vtodo b { font-weight: 600; }
+.vnotes { color: var(--muted); font-size: 12.5px; }
+.field.inline select { width: auto; font-size: 12.5px; padding: 4px 8px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
 .empty { padding: 28px 16px; color: var(--muted); text-align: center; }
 .empty b { color: var(--ink); font-weight: 500; display: block; margin-bottom: 4px; }
 footer { color: var(--muted); font-size: 12.5px; display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 14px; }
@@ -203,6 +215,25 @@ footer p { margin: 0; max-width: 90ch; }
   <div class="alert" id="alert" hidden><span class="diamond" aria-hidden="true">◆</span><div id="alert-text"></div></div>
 
   <section class="figures" id="figures" aria-label="Totals"></section>
+
+  <section class="panel" aria-labelledby="v-h">
+    <div class="panel-h">
+      <h2 id="v-h">Which sequence is not working</h2>
+      <div class="field inline"><label for="in-bench" class="sr">Expected reply rate</label><select id="in-bench"></select></div>
+    </div>
+    <div class="panel-h"><div class="chips" id="v-filters" role="toolbar" aria-label="Filter by verdict"></div></div>
+    <p class="lead" id="v-note"></p>
+    <div class="verdicts" id="verdicts"><div class="empty"><b>No verdicts yet</b>They appear once sequence data has loaded.</div></div>
+  </section>
+
+  <section class="panel" aria-labelledby="r-h">
+    <div class="panel-h">
+      <h2 id="r-h">Replies</h2>
+      <span class="note">Marked with 👍 or 👎 on each reply alert in Slack</span>
+    </div>
+    <p class="lead" id="r-note"></p>
+    <div class="verdicts" id="replies"><div class="empty"><b>No reply alerts yet</b>Each reply gets an alert in Slack. React 👍 or 👎 there and it shows here.</div></div>
+  </section>
 
   <section class="panel" aria-labelledby="cap-h">
     <div class="panel-h">
@@ -408,7 +439,7 @@ footer p { margin: 0; max-width: 90ch; }
     schedule_owned_by_another_user: "Sending schedule belongs to another Apollo user",
     email_steps_without_approved_template: "A step has no approved email"
   };
-  var state = { doc: null, history: [], sender: 0, filter: "all", loaded: false, calc: null };
+  var state = { doc: null, history: [], replies: [], sender: 0, filter: "all", loaded: false, calc: null };
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -506,7 +537,7 @@ footer p { margin: 0; max-width: 90ch; }
       if (!map[k]) { map[k] = { name: k, seqs: 0, active: 0, reached: 0, sent: 0, replied: 0, interested: 0, bounced: 0, spam: 0, steps: [] }; out.push(map[k]); }
       var g = map[k];
       g.seqs++; if (s.active) g.active++;
-      g.reached += reachedOf(s); g.sent += n0(e.sent); g.replied += n0(e.replied); g.interested += n0(e.interested);
+      g.reached += reachedOf(s); g.sent += n0(e.sent); g.replied += n0(e.replied); g.interested += interestedOf(s);
       g.bounced += n0(e.bounced); g.spam += n0(e.spam_blocked);
       sortedSteps(s).forEach(function (x, i) {
         g.steps[i] = g.steps[i] || { sent: 0, replied: 0 };
@@ -558,7 +589,7 @@ footer p { margin: 0; max-width: 90ch; }
       ["Slots left " + dayLabel(c.days[0], c.todayKey).toLowerCase(), fmt(slots0), fmt(freeWeek) + " free over 5 days", slots0 ? "hl" : "hl full"],
       ["Queued", fmt(queued), "across " + fmt(c.seqs.filter(function (s) { return n0((s.emails || {}).queued); }).length) + " sequences", ""],
       ["Delivered", fmt(delivered), reached ? fmt(reached) + " people emailed" : "", ""],
-      ["Replied", fmt(replied), reached ? pct(replied, reached) + " of people emailed" : "", ""],
+      ["Replied", fmt(replied), (reached ? pct(replied, reached) + " of people emailed" : "") + (interestedTotal(c.seqs) ? " · " + fmt(interestedTotal(c.seqs)) + " interested" : ""), ""],
       ["Bounced", fmt(bounced), (sent ? pct(bounced, sent) + " of sent" : "–") + (spam ? " · " + fmt(spam) + " spam blocked" : ""), ""]
     ];
     var f = $("figures"); f.textContent = "";
@@ -593,6 +624,8 @@ footer p { margin: 0; max-width: 90ch; }
     $("cap-note").textContent = "Next " + SHOW_DAYS + " sending days, weekdays only";
     renderStartOptions();
     renderPlanner();
+    renderVerdicts();
+    renderReplies();
     renderCampaigns();
     renderSteps();
     renderHealth();
@@ -611,6 +644,177 @@ footer p { margin: 0; max-width: 90ch; }
     t.appendChild(f);
     (marks || []).forEach(function (m) { var k = el("b", "mark"); k.style.left = Math.min(100, m / scaleMax * 100) + "%"; t.appendChild(k); });
     return t;
+  }
+
+  /* Replies marked in Slack (reply alerts write the replies collection) */
+  function repliesFor(id) { return state.replies.filter(function (r) { return str(r.sequence_id) === str(id); }); }
+  // Apollo's own "interested" and the Slack thumbs-up marks can overlap, so take the larger.
+  function interestedOf(s) {
+    var marked = repliesFor(s.id).filter(function (r) { return r.outcome === "interested"; }).length;
+    return Math.max(n0((s.emails || {}).interested), marked);
+  }
+  function interestedTotal(seqs) { return seqs.reduce(function (a, s) { return a + interestedOf(s); }, 0); }
+  var OUTCOME_R = {
+    pending: ["Waiting for a mark", "t-warn"], interested: ["Interested", "t-ok"], not_interested: ["Not interested", ""]
+  };
+  function renderReplies() {
+    var box = $("replies"), list = state.replies.filter(function (r) { return r && typeof r === "object"; }).slice()
+      .sort(function (a, b) { return str(b.detected_at).localeCompare(str(a.detected_at)); });
+    box.textContent = "";
+    var counts = { pending: 0, interested: 0, not_interested: 0 };
+    list.forEach(function (r) { if (counts[r.outcome] !== undefined) counts[r.outcome]++; });
+    $("r-note").textContent = list.length
+      ? fmt(list.length) + " repl" + (list.length === 1 ? "y" : "ies") + ": " + fmt(counts.interested) + " interested, " + fmt(counts.not_interested) + " not interested, " + fmt(counts.pending) + " waiting for a 👍 or 👎 in Slack."
+      : "";
+    if (!list.length) {
+      var e = el("div", "empty"); e.appendChild(el("b", "", "No reply alerts yet"));
+      e.appendChild(document.createTextNode("Each reply gets an alert in Slack. React 👍 or 👎 there and it shows here."));
+      box.appendChild(e); return;
+    }
+    list.forEach(function (r) {
+      var row = el("div", "vrow"), o = OUTCOME_R[r.outcome] || OUTCOME_R.pending;
+      var head = el("div", "vhead"); head.appendChild(pill(o[0], o[1]));
+      head.appendChild(el("b", "", [str(r.first_name), str(r.last_name)].join(" ").trim() || "Someone"));
+      head.appendChild(el("span", "note", [str(r.title), str(r.company)].filter(Boolean).join(" at ")));
+      row.appendChild(head);
+      var t = Date.parse(str(r.detected_at));
+      row.appendChild(el("p", "vwhy", str(r.sequence_name) + (num(r.step) ? " · replied to step " + r.step : "") +
+        (t ? " · " + new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "")));
+      if (str(r.step_summary)) row.appendChild(el("p", "vnotes", "That email: " + r.step_summary));
+      if (r.outcome !== "pending" && str(r.marked_by)) row.appendChild(el("p", "vnotes", "Marked by " + r.marked_by + (str(r.apollo_list) ? " · Apollo list: " + r.apollo_list : "")));
+      box.appendChild(row);
+    });
+  }
+
+  /* 0. Which sequence is not working */
+  // Zero replies only means something once enough people have been emailed. p0 is the chance of
+  // seeing no replies at all if the sequence were really getting the expected reply rate.
+  var VERDICT = {
+    risk:    { label: "Hurting deliverability", tone: "t-bad",  rank: 0 },
+    stuck:   { label: "Not sending",            tone: "t-bad",  rank: 1 },
+    failing: { label: "Not working",            tone: "t-bad",  rank: 2 },
+    lagging: { label: "Lagging",                tone: "t-warn", rank: 3 },
+    early:   { label: "Too early",              tone: "",       rank: 4 },
+    working: { label: "Working",                tone: "t-ok",   rank: 5 },
+    off:     { label: "Off",                    tone: "",       rank: 6 }
+  };
+  var P_FAIL = 0.15, P_LAG = 0.4;
+  var rateKey = "vetted-overview-benchmark", rateChoice = null;
+  try { rateChoice = num(parseFloat(localStorage.getItem(rateKey))); } catch (e) {}
+  function benchmark() { return rateChoice || num((state.doc || {}).benchmark_reply_rate) || 0.02; }
+  function peopleToJudge(r) { return Math.ceil(Math.log(P_LAG) / Math.log(1 - r)); }
+  function workingDaysBetween(aKey, bKey) {
+    if (!aKey || !bKey || aKey >= bKey) return 0;
+    var n = 0; for (var k = addDays(aKey, 1); k <= bKey; k = addDays(k, 1)) if (isWeekday(k)) n++;
+    return n;
+  }
+  function verdictOf(s, ctx) {
+    var e = s.emails || {}, ap = autoPause(), r = benchmark(), tz = ctx.tz;
+    var n = reachedOf(s), replied = n0(e.replied), sentN = n0(e.sent);
+    var badRate = sentN ? (n0(e.bounced) + n0(e.spam_blocked)) / sentN * 100 : 0;
+    var steps = sortedSteps(s), lastStep = 0;
+    steps.forEach(function (x, i) { if (n0(x.sent)) lastStep = i + 1; });
+    var own = (Array.isArray(s.issues) ? s.issues : []).filter(function (c) { return c !== "sequence_inactive" && ctx.shared.indexOf(c) === -1; });
+    var nowKey = localKey((state.doc || {}).updated_at, tz);
+    var idle = s.last_used_at ? workingDaysBetween(localKey(s.last_used_at, tz), nowKey) : null;
+    var delayed = n0(e.delayed), paused = n0((s.contact_statuses || {}).paused);
+    var p0 = Math.pow(1 - r, n), pctR = Math.round(r * 100);
+    var notes = [], v, why, todo;
+
+    if (!s.active) {
+      v = "off"; why = n0(e.queued) ? fmt(e.queued) + " emails are waiting while it's switched off." : "Switched off.";
+      todo = n0(e.queued) ? "Switch it back on in Apollo, or remove the waiting contacts." : "Archive it in Apollo if it's finished.";
+    } else if (sentN >= 20 && n0(e.bounced) + n0(e.spam_blocked) >= 2 && badRate >= ap.warning_pct) {
+      // One bounce in a small batch is noise; the verdict needs at least two.
+      v = "risk"; why = pct(n0(e.bounced) + n0(e.spam_blocked), sentN) + " of its emails bounced or were spam blocked, at or above Apollo's " + ap.warning_pct + "% warning.";
+      todo = "Pause it and check the bounced addresses before it sends more. High bounces hurt the domain for every sequence.";
+    } else if (own.length || (n0(e.queued) && idle !== null && idle >= 2)) {
+      v = "stuck";
+      why = own.length ? own.map(function (c) { return ISSUES[c] || c; }).join("; ") + "."
+        : "Nothing sent for " + idle + " working days, with " + fmt(e.queued) + " emails waiting.";
+      todo = "Open it in Apollo and fix the sending problem. Its contacts are waiting.";
+    } else if (replied > 0) {
+      v = "working"; why = fmt(replied) + " repl" + (replied === 1 ? "y" : "ies") + " from " + fmt(n) + " people (" + pct(replied, n) + ")" +
+        (interestedOf(s) ? ", " + fmt(interestedOf(s)) + " interested" : "") + ".";
+      todo = replied / n < r ? "Replying, but below " + pctR + "%. Watch the next steps."
+        : replied < 2 ? "One reply so far, which is a good sign but not proof. Keep it running."
+        : "Keep going. This offer and audience are worth another batch.";
+    } else if (p0 < P_FAIL) {
+      v = "failing"; why = "No replies from " + fmt(n) + " people. At " + pctR + "% you'd expect about " + (n * r).toFixed(1) +
+        ", and the chance of none at all would be " + Math.round(p0 * 100) + "%.";
+      todo = "Stop adding people to it. Rework the first email or the audience before the next batch.";
+    } else if (p0 < P_LAG) {
+      v = "lagging"; why = "No replies from " + fmt(n) + " people. At " + pctR + "% there would be a " + Math.round(p0 * 100) + "% chance of none, so it's not proven either way yet.";
+      todo = lastStep < steps.length ? "Watch step " + (lastStep + 1) + ". If it's still at zero after that, treat it as not working." : "All steps have gone out. Treat it as not working unless a late reply comes in.";
+    } else {
+      v = "early"; why = "No replies yet from " + fmt(n) + " people.";
+      todo = "Judge it after about " + fmt(peopleToJudge(r)) + " people at " + pctR + "%. It has " + fmt(n) + ".";
+    }
+    if (v !== "risk" && badRate > 0 && sentN) notes.push(pct(n0(e.bounced) + n0(e.spam_blocked), sentN) + " bounced or spam blocked");
+    if (delayed) notes.push(fmt(delayed) + " emails delayed by a sending limit");
+    if (paused) notes.push(fmt(paused) + " contact" + (paused > 1 ? "s" : "") + " paused (out of office or manual)");
+    if (steps.length) notes.push("step " + (lastStep || 1) + " of " + steps.length + " reached");
+    var camp = ctx.camps[campaignOf(s)];
+    if (camp && camp.seqs > 1) notes.push("campaign: " + fmt(camp.replied) + " repl" + (camp.replied === 1 ? "y" : "ies") + " from " + fmt(camp.reached) + " people across " + fmt(camp.seqs) + " batches");
+    return { key: v, why: why, todo: todo, notes: notes, n: n, replied: replied };
+  }
+  function verdictCtx(seqs) {
+    var shared = seqs.length > 1 ? (Array.isArray(seqs[0].issues) ? seqs[0].issues : []).filter(function (code) {
+      return seqs.every(function (s) { return Array.isArray(s.issues) && s.issues.indexOf(code) !== -1; });
+    }) : [];
+    var camps = {}; campaignRows(seqs).forEach(function (g) { camps[g.name] = g; });
+    return { tz: state.calc ? state.calc.tz : "Europe/London", shared: shared, camps: camps };
+  }
+  var vFilter = "attention";
+  function renderVerdicts() {
+    var c = state.calc, ctx = verdictCtx(c.seqs);
+    var rows = c.seqs.map(function (s) { return { s: s, v: verdictOf(s, ctx) }; }).sort(function (a, b) {
+      return VERDICT[a.v.key].rank - VERDICT[b.v.key].rank || b.v.n - a.v.n;
+    });
+    var ATT = ["risk", "stuck", "failing", "lagging"];
+    var counts = {}; rows.forEach(function (x) { counts[x.v.key] = (counts[x.v.key] || 0) + 1; });
+    var att = rows.filter(function (x) { return ATT.indexOf(x.v.key) !== -1; }).length;
+
+    var sel = $("in-bench"), r = benchmark();
+    if (!sel.options.length) [0.01, 0.02, 0.03, 0.05].forEach(function (v) { var o = el("option", "", Math.round(v * 100) + "% expected reply rate"); o.value = String(v); sel.appendChild(o); });
+    sel.value = String([0.01, 0.02, 0.03, 0.05].indexOf(r) !== -1 ? r : 0.02);
+
+    var fb = $("v-filters"); fb.textContent = "";
+    [["attention", "Needs attention", att]].concat(Object.keys(VERDICT).filter(function (k) { return counts[k]; }).sort(function (a, b) { return VERDICT[a].rank - VERDICT[b].rank; })
+      .map(function (k) { return [k, VERDICT[k].label, counts[k]]; })).concat([["all", "All", rows.length]]).forEach(function (f) {
+      var b = el("button", "chip", f[1]); b.type = "button"; b.id = "vf-" + f[0];
+      b.setAttribute("aria-pressed", vFilter === f[0] ? "true" : "false");
+      b.appendChild(el("span", "num", f[2]));
+      b.addEventListener("click", function () { vFilter = f[0]; renderVerdicts(); });
+      fb.appendChild(b);
+    });
+
+    var list = rows.filter(function (x) { return vFilter === "all" || (vFilter === "attention" ? ATT.indexOf(x.v.key) !== -1 : x.v.key === vFilter); });
+    var box = $("verdicts"); box.textContent = "";
+    if (!list.length) {
+      var e = el("div", "empty");
+      e.appendChild(el("b", "", vFilter === "attention" ? "Nothing needs attention" : "No sequences here"));
+      e.appendChild(document.createTextNode(vFilter === "attention" ? "Every sequence is working, too early to judge, or switched off." : "Pick another filter."));
+      box.appendChild(e);
+    }
+    list.forEach(function (x) {
+      var row = el("div", "vrow"), V = VERDICT[x.v.key];
+      var head = el("div", "vhead");
+      head.appendChild(pill(V.label, V.tone));
+      head.appendChild(link(str(x.s.name) || "Unnamed sequence", x.s.url));
+      row.appendChild(head);
+      row.appendChild(el("p", "vwhy", x.v.why));
+      var act = el("p", "vtodo"); act.appendChild(el("b", "", "Next: ")); act.appendChild(document.createTextNode(x.v.todo)); row.appendChild(act);
+      if (x.v.notes.length) row.appendChild(el("p", "vnotes", x.v.notes.join(" · ")));
+      box.appendChild(row);
+    });
+    var failing = (counts.failing || 0) + (counts.risk || 0) + (counts.stuck || 0);
+    $("v-note").textContent = failing
+      ? fmt(failing) + " sequence" + (failing > 1 ? "s" : "") + " clearly need" + (failing > 1 ? "" : "s") + " action. " + (counts.lagging ? fmt(counts.lagging) + " more lagging." : "")
+      : counts.lagging
+        ? "None is clearly failing yet. " + fmt(counts.lagging) + " lagging: no replies, but too few people to be sure."
+        : "None is failing or lagging right now.";
+    state.verdicts = {}; rows.forEach(function (x) { state.verdicts[x.s.id] = x.v.key; });
   }
 
   /* 1. Which campaign is working */
@@ -932,7 +1136,7 @@ footer p { margin: 0; max-width: 90ch; }
     var sn = $("seq-shared"); sn.hidden = !shared.length;
     sn.textContent = shared.length ? "Apollo flags every sequence: " + shared.map(function (code) { return ISSUES[code] || code; }).join("; ") + "." : "";
     var t = $("seq-table"); t.textContent = "";
-    var cols = [["Sequence", ""], ["Status", ""], ["Cap/day", "n"], ["Follow-up days", ""], ["Contacts at step", ""], ["Queued", "n"], ["Delivered", "n"], ["Bounced", "n"], ["Replied", "n"]];
+    var cols = [["Sequence", ""], ["Status", ""], ["Health", ""], ["Cap/day", "n"], ["Follow-up days", ""], ["Contacts at step", ""], ["Queued", "n"], ["Delivered", "n"], ["Bounced", "n"], ["Replied", "n"]];
     var hd = el("thead"), hr = el("tr");
     cols.forEach(function (x) { hr.appendChild(el("th", x[1], x[0])); });
     hd.appendChild(hr); t.appendChild(hd);
@@ -955,6 +1159,7 @@ footer p { margin: 0; max-width: 90ch; }
       });
       tr.appendChild(nm);
       var st = el("td"); st.appendChild(s.active ? pill("Active", "t-ok") : pill("Off", "")); tr.appendChild(st);
+      var hv = VERDICT[(state.verdicts || {})[s.id]], hc = el("td"); if (hv) hc.appendChild(pill(hv.label, hv.tone)); tr.appendChild(hc);
       tr.appendChild(el("td", "n", fmt(s.daily_cap)));
       tr.appendChild(el("td", "days", followDays(s).length ? "Day " + followDays(s).join(" · ") : "–"));
       var sc = el("td"), sw = el("span", "steps");
@@ -971,7 +1176,7 @@ footer p { margin: 0; max-width: 90ch; }
     if (list.length > 1) {
       var tf = el("tfoot"), fr = el("tr");
       fr.appendChild(el("td", "", "Total, " + fmt(list.length) + " sequences"));
-      fr.appendChild(el("td"));
+      fr.appendChild(el("td")); fr.appendChild(el("td"));
       fr.appendChild(el("td", "n", fmt(tot.cap)));
       fr.appendChild(el("td")); fr.appendChild(el("td"));
       [tot.q, tot.d, tot.b, tot.r].forEach(function (v) { fr.appendChild(el("td", "n", fmt(v))); });
@@ -982,6 +1187,11 @@ footer p { margin: 0; max-width: 90ch; }
   function tick() { $("updated").textContent = state.doc && state.doc.updated_at ? "Updated from Apollo " + ago(state.doc.updated_at) : ""; }
 
   ["in-n", "in-start"].forEach(function (id) { $(id).addEventListener("input", renderPlanner); });
+  $("in-bench").addEventListener("change", function (e) {
+    rateChoice = num(parseFloat(e.target.value));
+    try { localStorage.setItem(rateKey, String(rateChoice)); } catch (err) {}
+    if (state.calc) { renderVerdicts(); renderTable(); }
+  });
   $("in-cap").addEventListener("input", function () { capTouched = true; renderPlanner(); });
   var rz; window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { if (state.calc) { renderPlanner(); renderTrend(); } }, 120); });
   setInterval(tick, 30000);
@@ -1010,6 +1220,10 @@ footer p { margin: 0; max-width: 90ch; }
         $("meta").textContent = "This page fills in when the outbound-leads skill refreshes it from Apollo.";
       }
     }, function () { settle(); setPill("Live updates stopped", "t-bad"); $("updated").textContent = "Reopen the page to reconnect."; });
+    db.collection("replies").onSnapshot(function (snap) {
+      state.replies = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.message_id) o.message_id = d.id; return o; });
+      if (state.calc) render();
+    }, function () {});
     db.collection("history").onSnapshot(function (snap) {
       state.history = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.date) o.date = d.id; return o; });
       if (state.calc) { renderHealth(); renderTrend(); }

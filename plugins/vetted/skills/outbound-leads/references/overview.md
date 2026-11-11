@@ -1,7 +1,8 @@
 # Outbound overview (all sequences)
 
-One private claude.ai page per workspace that shows every Apollo sequence at once. It answers five questions:
+One private claude.ai page per workspace that shows every Apollo sequence at once. It answers six questions:
 
+- **Which sequence is not working:** a verdict for each sequence (Hurting deliverability, Not sending, Not working, Lagging, Too early, Working, Off) with the reason and the next step. Zero replies only counts as "not working" once enough people have been emailed: the page works out the chance of seeing no replies at the expected reply rate, which the viewer can change on the page.
 - **Capacity:** how many sequences there are and which are active, each one's daily cap and follow-up days, what is queued, and how much of the mailbox's daily limit is left for a new sequence.
 - **Which campaign is working:** batches of the same offer grouped together, with reply rate, interested count and bounce rate.
 - **Which step gets the replies:** replies and reply rate for steps 1 to 4 across all sequences.
@@ -35,8 +36,8 @@ If the page needs republishing after a skill update, read it first with `Artifac
 
 Every call here is read-only and costs no credits.
 
-1. `apollo_emailer_campaigns_search` (`per_page` 100, page through all of them). Skip `archived: true`. For each sequence, keep `id`, `name`, `sequence_url`, `active`, `created_at`, `max_emails_per_day`, `user_id`, `emailer_steps` (position, `wait_time`) and `unique_delivered`.
-2. For each sequence, `apollo_emailer_messages_search` with `emailer_campaign_id` and `display_mode: "metadata_mode"`. From `status_counts`, read `scheduled` (queued), `sent`, `delivered`, `bounced`, `replied`, `spam_blocked` and `demoed` (interested). A missing status means 0.
+1. `apollo_emailer_campaigns_search` (`per_page` 100, page through all of them). Skip `archived: true`. For each sequence, keep `id`, `name`, `sequence_url`, `active`, `created_at`, `last_used_at`, `max_emails_per_day`, `user_id`, `emailer_steps` (position, `wait_time`) and `unique_delivered`.
+2. For each sequence, `apollo_emailer_messages_search` with `emailer_campaign_id` and `display_mode: "metadata_mode"`. From `status_counts`, read `scheduled` (queued), `delayed` (scheduled but held back by a sending limit), `sent`, `delivered`, `bounced`, `replied`, `spam_blocked` and `demoed` (interested). A missing status means 0.
 3. **By step.** One `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["emailer_step_id"]`, metrics `num_emails_sent`, `num_emails_replied`, `num_emails_bounced`. Each row is labelled `<sequence name>: Step <n>`. Match rows to sequences by exact name and step number.
 4. **Queue by step.** For each **active** sequence, `apollo_emailer_campaigns_show`, keeping only the top-level `emailer_steps[].counts.active` (contacts waiting at each step), `emailer_campaign.contact_statuses`, `emailer_campaign.auto_pause_config` and `sending_diagnostics.issues`. These responses are large because they include the templates. With more than 5 active sequences, give the `show` calls to one subagent and ask it for exactly those fields as compact JSON. For a sequence that is off, the step counts aren't needed.
 5. **Mailbox limit and today's sends.** `apollo_analytics_sync_report` with `date_range` `{"modality": "today"}`, `group_by: ["email_account_id"]` (rows are labelled with the mailbox address), metrics `email_daily_limit`, `num_emails_sent`. Don't group by `send_from_email`: Apollo rejects `email_daily_limit` with it. Query one day only, because over a longer range `email_daily_limit` comes back summed. If Apollo returns no limit, use the sender's `daily_limit` from config, else `mailbox_daily_limit` (default 150).
@@ -57,17 +58,19 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
   "senders": [{"name": "Sam", "mailbox": "sam@acme.com", "user_id": "<apollo user id>", "daily_limit": 150, "sent_today": 4, "limit_source": "apollo"}],
   "new_sequence": {"daily_cap": 50, "waits": [0, 3, 4, 7]},
   "auto_pause": {"warning_pct": 4, "pause_pct": 6, "window_days": 7, "min_volume": 200},
+  "benchmark_reply_rate": 0.02,
   "sequences": [{
     "id": "<apollo id>", "name": "UK agencies, partner-led - batch 2 - Sam", "url": "<sequence_url>",
     "campaign": "UK agencies, partner-led",
-    "active": true, "archived": false, "owner_user_id": "<user_id>", "created_at": "<ISO>",
+    "active": true, "archived": false, "owner_user_id": "<user_id>", "created_at": "<ISO>", "last_used_at": "<ISO>",
     "daily_cap": 50,
     "steps": [
       {"position": 1, "wait": 0, "active": 25, "sent": 25, "replied": 1, "bounced": 0},
       {"position": 2, "wait": 3, "active": 25, "sent": 0, "replied": 0, "bounced": 0}
     ],
-    "emails": {"queued": 50, "sent": 25, "delivered": 25, "bounced": 0, "replied": 1, "spam_blocked": 0, "interested": 0},
+    "emails": {"queued": 50, "delayed": 0, "sent": 25, "delivered": 25, "bounced": 0, "replied": 1, "spam_blocked": 0, "interested": 0},
     "reached": 25, "contacts_total": 50,
+    "contact_statuses": {"active": 50, "paused": 0, "finished": 0, "bounced": 0, "failed": 0},
     "issues": ["schedule_owned_by_another_user"],
     "dashboard_url": ""
   }]
@@ -80,10 +83,15 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
 - `max_active_sequences`: `apollo_max_active_sequences` from config, or `null` if the plan allows more than are in use.
 - `new_sequence`: `max_emails_per_day` and the `step_days` from config, turned into Apollo waits (days 0, 3, 7, 14 become 0, 3, 4, 7).
 - `auto_pause`: from `auto_pause_config` (`warning_threshold_pct`, `auto_pause_threshold_pct`, `evaluation_window_days`, `min_volume`) of any active sequence. They are account settings.
+- `benchmark_reply_rate`: `benchmark_reply_rate` from config (default 0.02). The verdicts judge zero replies against it.
+- `last_used_at`: when the sequence last sent, from the search. With emails queued and nothing sent for 2 working days, the page calls the sequence "Not sending".
+- `contact_statuses`: from `show`, numbers only (leave out any value Apollo returns as "loading").
 - `steps[]`: `active` from step 4 (0 for a sequence that is off), and `sent`, `replied` and `bounced` from step 3.
 - `reached`: step 1's `sent`, the number of people who got the first email. `contacts_total`: sum of `contact_statuses` values that are numbers.
 - `dashboard_url`: the campaign dashboard URL from `outbound/campaigns/<slug>/00-dashboard.json`, where that campaign's sequence name matches. Otherwise `""`.
 - Include sequences that Vetted didn't create too. The mailbox limit counts every email the mailbox sends.
+
+The page also reads the `replies` collection, which reply alerts write (`replies.md`). It lists every reply and counts the ones marked 👍 as interested. The overview refresh never writes to `replies`.
 
 `history/<YYYY-MM-DD>` (document id is the date, in the market time zone):
 
@@ -106,6 +114,7 @@ Outbound overview (<date>)
 - Sequences: <n> (<a> active) · Mailbox limit <limit>/day, <sent_today> sent today
 - Queued <q> · Delivered <d> · Replied <r> · Bounced <b>
 - Best campaign: <name>, <replied> replies from <reached> people (<rate>)
+- Needs attention: <sequences the page would mark Hurting deliverability, Not sending, Not working or Lagging, or "none">
 - Replies by step: <s1> · <s2> · <s3> · <s4>
 <url>
 ```

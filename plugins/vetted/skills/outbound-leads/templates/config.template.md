@@ -47,6 +47,7 @@ senders:
 - max_emails_per_day: 50          # cap for each new sequence
 - mailbox_daily_limit: 150        # most emails one mailbox sends a day, across all its sequences. Match Settings > Mailboxes in Apollo. A sender can override it with daily_limit
 - contact_location_default: "London, United Kingdom"   # set on every contact so sends follow UK hours
+- benchmark_reply_rate: 0.02     # the reply rate a working sequence should reach. The overview judges zero-reply sequences against it
 
 ## Sequence shape
 
@@ -74,6 +75,14 @@ senders:
 ## Live dashboard
 
 - dashboard: on                    # a private claude.ai page per campaign, updated after every step, plus one overview of every sequence. "off" to skip both
+
+## Reply alerts
+
+A Slack alert for every reply, with a draft response. React :+1: or :-1: to record the outcome in Apollo (see `references/replies.md`).
+
+- reply_alerts: on                 # on | off
+- interested_list: Vetted - Interested
+- not_interested_list: Vetted - Not interested
 
 ## Weekly loop
 

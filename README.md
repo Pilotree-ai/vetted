@@ -105,7 +105,9 @@ As soon as you confirm the brief, the skill gives you a link to a **live dashboa
 
 **You can watch it happen.** Each campaign gets its own private page on claude.ai that fills in as the run goes: the current step, what's waiting on you, the totals at each step, and every person with their screening evidence, email and status. It only shows what's happening. Approvals still happen in Slack.
 
-**One overview of every sequence.** A second private page shows all your Apollo sequences together, at one link that never changes. It shows which campaign is getting replies, which step the replies come from, bounces and spam blocks against Apollo's warning levels, and emails sent per day against your mailbox limit. It also lists every sequence with its daily cap, follow-up days, and queued, delivered, bounced and replied counts. And it shows how much of the daily limit is left over the next 15 working days, and how big a new sequence can be before its emails start running late. It refreshes after every daily report and whenever a new sequence goes live, and adds a day to its history each time. Say "show my outbound overview" to refresh it on demand.
+**One overview of every sequence.** A second private page shows all your Apollo sequences together, at one link that never changes. It gives each sequence a verdict (working, lagging, not working, hurting deliverability, not sending or too early) with the reason and what to do next. Zero replies only counts as "not working" once enough people have been emailed to be sure. It shows which campaign is getting replies, which step the replies come from, bounces and spam blocks against Apollo's warning levels, and emails sent per day against your mailbox limit. It also lists every sequence with its daily cap, follow-up days, and queued, delivered, bounced and replied counts. And it shows how much of the daily limit is left over the next 15 working days, and how big a new sequence can be before its emails start running late. It refreshes after every daily report and whenever a new sequence goes live, and adds a day to its history each time. Say "show my outbound overview" to refresh it on demand.
+
+**Replies reach you in Slack, with a draft.** When someone replies, Vetted posts an alert in your approval channel: who it is, their company, which email they answered and what it promised. The thread has a draft response you can edit and send yourself. React 👍 or 👎 on the alert and Vetted records the outcome on the contact in Apollo and on the overview, so you can see interested replies and not just replies. A routine checks every two hours on weekdays. Vetted never replies to a prospect itself, and it can't read what they wrote, so always read the reply in your inbox.
 
 **You can stop and pick up later.** Each step saves its output. Come back tomorrow and say "check the Slack approvals for the agency batch", and it carries on from there without repeating anything that costs credits.
 
@@ -172,6 +174,9 @@ The loop runs as a scheduled Claude cloud routine, so your computer can be off. 
 > how are my outbound sequences doing?
 > show my outbound overview
 > how much room is left for a new sequence?
+> which sequence is not working?
+> any replies?
+> set up reply alerts
 > add a second sender
 > set up the daily outbound report
 > set up the weekly loop
