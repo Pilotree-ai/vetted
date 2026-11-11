@@ -36,6 +36,8 @@ If the page needs republishing after a skill update, read it first with `Artifac
 
 Every call here is read-only and costs no credits.
 
+Apollo's analytics reports come back as a markdown table, and Apollo picks the column order itself, not the order the metrics were asked for. Always read a value by its column header ("Num emails sent", "Email daily limit" and so on), never by position. A swapped column once recorded a daily limit of 17 with 150 sent.
+
 1. `apollo_emailer_campaigns_search` (`per_page` 100, page through all of them). Skip `archived: true`. For each sequence, keep `id`, `name`, `sequence_url`, `active`, `created_at`, `last_used_at`, `max_emails_per_day`, `user_id`, `emailer_steps` (position, `wait_time`) and `unique_delivered`.
 2. For each sequence, `apollo_emailer_messages_search` with `emailer_campaign_id` and `display_mode: "metadata_mode"`. From `status_counts`, read `scheduled` (queued), `delayed` (scheduled but held back by a sending limit), `sent`, `delivered`, `bounced`, `replied`, `spam_blocked` and `demoed` (interested). A missing status means 0.
 3. **By step.** One `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["emailer_step_id"]`, metrics `num_emails_sent`, `num_emails_replied`, `num_emails_bounced`. Each row is labelled `<sequence name>: Step <n>`. Match rows to sequences by exact name and step number.
@@ -43,7 +45,7 @@ Every call here is read-only and costs no credits.
 5. **Mailbox limit and today's sends.** `apollo_analytics_sync_report` with `date_range` `{"modality": "today"}`, `group_by: ["email_account_id"]` (rows are labelled with the mailbox address), metrics `email_daily_limit`, `num_emails_sent`. Don't group by `send_from_email`: Apollo rejects `email_daily_limit` with it. Query one day only, because over a longer range `email_daily_limit` comes back summed. If Apollo returns no limit, use the sender's `daily_limit` from config, else `mailbox_daily_limit` (default 150).
 6. **Daily history.** `apollo_analytics_sync_report` with `range_start` the day after the last history date in `00-overview.json` (or the earliest sequence's `created_at` on a backfill) and `range_end` today, `group_by: ["smart_datetime_day"]`, metrics `num_emails_sent`, `num_emails_delivered`, `num_emails_replied`, `num_emails_bounced`, `email_daily_limit`. Always include yesterday and today again, because their numbers change during the day.
 7. `apollo_email_accounts_index` to match each sender's mailbox to its Apollo `user_id`.
-8. **A/B tests.** If the page's `tests` collection has any document with `status: "running"` (`ArtifactData` `list`, `collection: "tests"`), one `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["contact_label_ids"]`, metrics `num_contacts_emailed`, `num_contacts_replied`. Update each running test's `results` as "Results" in `ab-tests.md` describes, in the same batch as the other writes.
+8. **A/B tests.** Always list the page's `tests` collection (`ArtifactData` `list`, `collection: "tests"`). If it has any document with `status: "running"`, one `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["contact_label_ids"]`, metrics `num_contacts_emailed`, `num_contacts_replied`. Update each running test's `results` as "Results" in `ab-tests.md` describes, in the same batch as the other writes.
 
 ## 3. Write it
 

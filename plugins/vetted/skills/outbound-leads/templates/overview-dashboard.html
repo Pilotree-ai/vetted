@@ -1299,12 +1299,18 @@ footer p { margin: 0; max-width: 90ch; }
   var MON = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
   function pad2(n) { return ("0" + n).slice(-2); }
   function toNum(v) { var n = parseFloat(String(v === undefined || v === null ? "" : v).replace(/,/g, "")); return isFinite(n) ? n : 0; }
-  // Apollo's analytics answer with a markdown table; rows come back as arrays of cell text.
+  // Apollo's analytics answer with a markdown table. Apollo picks the column order itself
+  // (not the order the metrics were asked for), so rows come back as objects keyed by the
+  // lower-cased header, with the first column as "label".
   function mdRows(summary) {
     var lines = String(summary || "").split("\n").filter(function (l) { return /^\s*\|/.test(l); });
     if (lines.length < 3) return [];
+    function cells(l) { return l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); }); }
+    var head = cells(lines[0]).map(function (h) { return h.toLowerCase(); });
     return lines.slice(2).map(function (l) {
-      return l.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+      var c = cells(l), o = { label: c[0] };
+      head.forEach(function (h, i) { if (i) o[h] = c[i]; });
+      return o;
     });
   }
   function dayKeyFromLabel(label) {
@@ -1403,7 +1409,7 @@ footer p { margin: 0; max-width: 90ch; }
       if (running.length) {
         var byList = {};
         mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "all_time" }, group_by: ["contact_label_ids"],
-          metrics: ["num_contacts_emailed", "num_contacts_replied"] })).summary).forEach(function (r) { byList[r[0]] = { emailed: toNum(r[1]), replied: toNum(r[2]) }; });
+          metrics: ["num_contacts_emailed", "num_contacts_replied"] })).summary).forEach(function (r) { byList[r.label] = { emailed: toNum(r["num contacts emailed"]), replied: toNum(r["num contacts replied"]) }; });
         running.forEach(function (t) {
           var results = { updated_at: new Date().toISOString() };
           t.variants.forEach(function (va) { results[va.key] = byList[str(va.list)] || { emailed: 0, replied: 0 }; });
@@ -1414,8 +1420,8 @@ footer p { margin: 0; max-width: 90ch; }
       // Build the documents (same fields as overview.md section 3).
       var stepMap = {};
       byStep.forEach(function (r) {
-        var i = r[0].lastIndexOf(": Step "); if (i < 0) return;
-        stepMap[r[0].slice(0, i) + "#" + parseInt(r[0].slice(i + 7), 10)] = { sent: toNum(r[1]), replied: toNum(r[2]), bounced: toNum(r[3]) };
+        var i = r.label.lastIndexOf(": Step "); if (i < 0) return;
+        stepMap[r.label.slice(0, i) + "#" + parseInt(r.label.slice(i + 7), 10)] = { sent: toNum(r["num emails sent"]), replied: toNum(r["num emails replied"]), bounced: toNum(r["num emails bounced"]) };
       });
       var prevById = {}; (prev.sequences || []).forEach(function (s) { if (s && s.id) prevById[s.id] = s; });
       var ap = null, queuedTotal = 0;
@@ -1444,7 +1450,7 @@ footer p { margin: 0; max-width: 90ch; }
         if (str(old.campaign)) o.campaign = old.campaign;
         return o;
       });
-      var today = {}; todayRows.forEach(function (r) { today[String(r[0]).toLowerCase()] = { limit: toNum(r[1]), sent: toNum(r[2]) }; });
+      var today = {}; todayRows.forEach(function (r) { today[String(r.label).toLowerCase()] = { limit: toNum(r["email daily limit"]), sent: toNum(r["num emails sent"]) }; });
       var senders = (Array.isArray(prev.senders) && prev.senders.length ? prev.senders : [{}]).map(function (s) {
         var o = Object.assign({}, s), mb = str(s.mailbox).toLowerCase();
         var acc = accounts.filter(function (a) { return str(a.email).toLowerCase() === mb; })[0];
@@ -1459,9 +1465,10 @@ footer p { margin: 0; max-width: 90ch; }
           window_days: toNum(ap.evaluation_window_days) || 7, min_volume: toNum(ap.min_volume) || 200 } : prev.auto_pause
       });
       var hist = dayRows.map(function (r) {
-        var k = dayKeyFromLabel(r[0]); if (!k) return null;
-        var h = { date: k, sent: toNum(r[1]), delivered: toNum(r[2]), replied: toNum(r[3]), bounced: toNum(r[4]), partial: k === todayKey };
-        if (toNum(r[5])) h.daily_limit = toNum(r[5]);
+        var k = dayKeyFromLabel(r.label); if (!k) return null;
+        var h = { date: k, sent: toNum(r["num emails sent"]), delivered: toNum(r["num emails delivered"]), replied: toNum(r["num emails replied"]),
+          bounced: toNum(r["num emails bounced"]), partial: k === todayKey };
+        if (toNum(r["email daily limit"])) h.daily_limit = toNum(r["email daily limit"]);
         if (k === todayKey) h.queued = queuedTotal;
         return h;
       }).filter(Boolean);
