@@ -90,6 +90,15 @@ Stops sending to companies that refuse an email as spam, pauses sequences that b
 
 - ab_tests: offer                   # offer (suggest a test at each intake) | off
 
+## Monthly credit plan
+
+Every run plans the credit cycle from Apollo's exact balance (see `references/credit-plan.md`). Unused Apollo credits expire at each reset.
+
+- credit_reserve: 50               # credits kept back for re-checks and misses
+- enrich_ahead: offer              # offer (suggest it near the reset when credits would expire) | off
+- enrich_ahead_days: 10            # only in the last N days of the cycle, so emails stay fresh
+- enrich_ahead_weeks: 2            # at most this many weeks of next cycle's sending
+
 ## Reply alerts
 
 A Slack alert for every reply, with a draft response. React :+1: or :-1: to record the outcome in Apollo (see `references/replies.md`).

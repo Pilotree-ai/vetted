@@ -96,6 +96,8 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
 - `dashboard_url`: the campaign dashboard URL from `outbound/campaigns/<slug>/00-dashboard.json`, where that campaign's sequence name matches. Otherwise `""`.
 - Include sequences that Vetted didn't create too. The mailbox limit counts every email the mailbox sends.
 
+The page also reads `held/<slug>` documents (held enrich-ahead batches, written at load time, see `credit-plan.md` section 4), and an optional `plan_settings` field on `overview/current` (`{"reserve": 50, "ahead_days": 10, "ahead_weeks": 2}` from config). Leave `plan_settings` out to use those defaults.
+
 The page also reads the guard's `guard_events`, `guard_pauses` and `guard/state` (`guard.md`) to list every blocked or bounced email, the automatic stops and pauses, and any hold on new batches. The overview refresh never writes those.
 
 The page also reads the `replies` collection, which reply alerts write (`replies.md`). It lists every reply and counts the ones marked 👍 as interested. The overview refresh never writes to `replies`.

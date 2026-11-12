@@ -98,6 +98,8 @@ Reply "pause" to stop the loop, or "resume" to restart it.
 
 8. Save `go_ts`, set the week to `awaiting_go`.
 
+Size the week from the monthly plan (`credit-plan.md`): never more than the week's room, even if `weekly_leads` is higher. In the enrich-ahead window, add one line to the Go message: "<c> credits expire on <date>. Say 'enrich ahead' in Vetted to use them for <date>'s batches." Scheduled runs never enrich ahead themselves.
+
 A running A/B test continues every week unchanged (`ab-tests.md`, "In the weekly loop"). If it has become clearly ahead, add its one line to the Go message.
 
 If qualifiers fall short of `weekly_leads`, post the shortfall with the top drop reasons. Never loosen the rules to make up numbers.

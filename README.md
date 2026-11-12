@@ -111,7 +111,9 @@ As soon as you confirm the brief, the skill gives you a link to a **live dashboa
 
 **A deliverability guard that acts on its own.** Every couple of hours on weekdays, Vetted checks for emails refused as spam or bounced. When a company's mail server refuses you, it stops your other contacts at that company. When a sequence passes Apollo's 4% warning level, it pauses the sequence and switches it back on only when someone reacts ✅ in Slack. When the whole mailbox is bouncing, it holds new batches. Every action is posted in your approval channel, and the overview lists every blocked or bounced email. (Junk-folder placement can't be seen by any sender: use an inbox placement test or Google Postmaster Tools for that.)
 
-**A monthly plan from your real credit balance.** Vetted reads your exact Apollo credit balance and cycle dates, works out how many credits each approved lead really costs you, and plans the rest of the month week by week against both limits: credits, and your mailbox's daily sending limit. The overview shows the plan under "This month", including which limit is binding and how many credits would go unused.
+**Every run starts with this month's plan.** Apollo credits are spent once per person, but a mailbox sends to each person four times, and unused credits expire at each reset (Apollo doesn't carry them over). So before writing a single email, Vetted reads your exact credit balance, cycle dates and mailbox limits from Apollo. It works out how many new leads fit each week under both limits, and sizes your batch to match. If you ask for more than fits, it says so and offers to split it.
+
+Near the end of a cycle with credits to spare, it offers to **enrich ahead**: next month's first batches are found, screened, written and approved now with credits that would otherwise expire, held, re-checked against each company's website, then loaded after the reset. The overview shows the same plan under "This month".
 
 **Replies reach you in Slack, with a draft.** When someone replies, Vetted posts an alert in your approval channel: who it is, their company, which email they answered and what it promised. The thread has a draft response you can edit and send yourself. React 👍 or 👎 on the alert and Vetted records the outcome on the contact in Apollo and on the overview, so you can see interested replies and not just replies. A routine checks every two hours on weekdays. Vetted never replies to a prospect itself, and it can't read what they wrote, so always read the reply in your inbox.
 
@@ -184,6 +186,8 @@ The loop runs as a scheduled Claude cloud routine, so your computer can be off. 
 > any replies?
 > how is the A/B test going?
 > how many leads can we do this month?
+> enrich ahead
+> load the held batch
 > any emails going to spam?
 > set up reply alerts
 > add a second sender

@@ -1,7 +1,7 @@
 {
   "name": "vetted",
   "description": "Vetted: one sentence in, an approved, personalised outbound campaign out. Apollo search, website screening with evidence, enrichment, Slack approval, Apollo sequence, tracking.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "author": {
     "name": "Pilotree",
     "url": "https://pilotree.ai"

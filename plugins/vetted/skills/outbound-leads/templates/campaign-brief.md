@@ -51,6 +51,10 @@ Ask in one go, with suggested defaults, using AskUserQuestion when available. Th
 
 Do not ask about things config already answers (voice, Slack channel, sequence shape).
 
+## 3b. Size the batch against the month's plan
+
+Before the read-back, compare the requested batch with the plan from preflight, and offer enrich-ahead when the cycle is ending with credits to spare, as `references/credit-plan.md` section 3 describes. Ask, in the same question as the other gaps. Never shrink or split a batch without saying so.
+
 ## 4. Read back and wait for a yes (Gate 1)
 
 Show the brief in the template format below, plus:
@@ -108,6 +112,7 @@ Source: <pasted | saved offer: outbound/offers/<name>.md | draft for Slack appro
 
 ## Batch
 - Target approved leads: <n>
+- Send: <now, week of <date> | held until <date> (enrich ahead)> · this week's room: <n> leads · credits left: <n>, resetting <date>
 - Screen about: <n x multiplier>
 - Unclear leads: hold for review
 - Exclusions: ledger, active Apollo sequences, <extra>

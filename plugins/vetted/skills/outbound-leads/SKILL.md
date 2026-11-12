@@ -25,8 +25,8 @@ Read each reference file when you reach its step, not before. Keep the user info
 
 | # | Step | Read | Credits | Gate |
 |---|---|---|---|---|
-| 0 | Preflight: check Apollo, Slack and plan limits, then fill any missing config in a short dialogue | `references/preflight.md`, `references/setup.md` | Free | Stop if anything fails |
-| 1 | Intake: sentence to brief, ask gaps, read back. On yes, create the live dashboard | `templates/campaign-brief.md`, `references/dashboard.md` | Free | **Gate 1: brief confirmed** |
+| 0 | Preflight: check Apollo, Slack and plan limits, fill any missing config in a short dialogue, then build this month's plan from the exact credit balance and mailbox limits | `references/preflight.md`, `references/setup.md`, `references/credit-plan.md` | Free | Stop if anything fails |
+| 1 | Intake: sentence to brief, size the batch against the month's plan (send now, next week, or held as enrich-ahead), ask gaps, read back. On yes, create the live dashboard | `templates/campaign-brief.md`, `references/dashboard.md` | Free | **Gate 1: brief confirmed** |
 | 2 | Apollo search: broad pull, exclusions | `references/apollo-search.md` | Free | |
 | 3 | Website screen: qualify, drop or unclear with evidence | `references/qualify-rules.md` | Free | |
 | 4 | Enrich qualifiers and unclears only | `references/apollo-search.md` (Enrich section) | **Costs credits** | **Gate 2: cost confirmed** |
@@ -45,7 +45,7 @@ Also read `references/lessons-learned.md` once at the start of a run. It is shor
 
 **Deliverability guard.** Every reply check also runs the guard (`references/guard.md`). It stops the other contacts at a company that refused an email as spam, pauses a sequence whose bounces and spam blocks pass Apollo's warning level (and resumes it only on a ✅), and holds new batches while the whole mailbox is bouncing. Every action is posted in the approval channel.
 
-**Monthly credit plan.** Credits and mailbox sends are both limited. `references/credit-plan.md` plans each credit cycle week by week from Apollo's exact credit balance and the mailbox forecast. The overview shows it under "This month", and intake and the weekly loop use it to size batches.
+**Monthly credit plan (every run).** Credits and mailbox sends are both limited, and unused Apollo credits expire at the end of each cycle. Every run starts with the plan: preflight reads the exact credit balance, cycle dates and mailbox limits from Apollo, and `scripts/month_plan.py` works out the room week by week plus how many leads to **enrich ahead** with credits that would otherwise expire (`references/credit-plan.md`). Intake sizes the batch against it. Enrich-ahead batches are approved now, held, re-checked and loaded after the reset. The overview shows the same plan under "This month".
 
 **Reply alerts.** When anyone replies to a sequence, post an alert in the approval channel with who replied, which email they answered and a draft response, and record the approver's 👍 or 👎 as an Apollo list on the contact (`references/replies.md`). A routine runs this every two hours on weekdays. Vetted never replies to a prospect itself.
 

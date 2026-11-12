@@ -114,6 +114,10 @@ If nothing changed, a one-line "No new replies or marks."
 
 After the report, run "Every check" in `guard.md`, and add its one-line summary to the final block. The guard has its own Apollo writes (stopping contacts at a company that refused an email, pausing and resuming sequences), each announced in the approval channel.
 
+## 6. Held batches due
+
+List the overview's `held` collection. For each with `status: "held"` whose `load_from` date has come, set `status: "due"` and post once in the approval channel: "Held batch <label> (<n> approved emails) is ready to load. Say "load the held batch" in Vetted. Each email is re-checked before loading." Loading itself needs a person in chat (`credit-plan.md` section 4).
+
 ## Scheduled check (no workspace)
 
 A cloud routine runs this file every two hours on weekdays, with the Apollo and Slack connectors and this skill's repo. Its prompt gives the overview URL, the approval channel id and name, the sender's name and mailbox, the approvers and the list names. In that case:

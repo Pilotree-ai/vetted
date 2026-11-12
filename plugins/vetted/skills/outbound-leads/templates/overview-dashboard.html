@@ -481,7 +481,7 @@ footer p { margin: 0; max-width: 90ch; }
     schedule_owned_by_another_user: "Sending schedule belongs to another Apollo user",
     email_steps_without_approved_template: "A step has no approved email"
   };
-  var state = { doc: null, history: [], replies: [], tests: [], guardEvents: [], guardPauses: [], guardState: null, sender: 0, filter: "all", loaded: false, calc: null };
+  var state = { doc: null, history: [], replies: [], tests: [], held: [], guardEvents: [], guardPauses: [], guardState: null, sender: 0, filter: "all", loaded: false, calc: null };
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -1111,8 +1111,20 @@ footer p { margin: 0; max-width: 90ch; }
     });
     var total = N.reduce(function (a, b) { return a + b; }, 0);
     var monthLeads = Math.round(steady * 4.3);
-    return { cr: cr, endKey: endKey, perLead: perLead, steady: steady, weeks: weeks, total: total, spent: spent,
-      leftAtReset: Math.max(0, n0(cr.left) - spent), binding: binding, monthLeads: monthLeads,
+    // Enrich ahead: credits left after the weekly batches and the reserve, at most aheadWeeks of
+    // next cycle's sending, enriched in the last aheadDays of the cycle (scripts/month_plan.py).
+    var ps = (state.doc || {}).plan_settings || {};
+    var reserve = num(ps.reserve) !== null ? ps.reserve : 50, aheadWeeks = num(ps.ahead_weeks) || 2, aheadDays = num(ps.ahead_days) || 10;
+    var spare = n0(cr.left) - spent - reserve, ahead = { leads: 0, credits: 0 };
+    if (binding !== "credits" && spare >= perLead && endKey) {
+      ahead.leads = Math.min(Math.floor(spare / perLead), aheadWeeks * steady);
+      ahead.credits = Math.ceil(ahead.leads * perLead);
+      var todayK = c.todayKey || c.days[0], from = addDays(endKey, -aheadDays);
+      ahead.from = from > todayK ? from : todayK; ahead.to = addDays(endKey, -1);
+      var lf = endKey; while (parseKey(lf).getUTCDay() !== 1) lf = addDays(lf, 1); ahead.loadFrom = lf;
+    }
+    return { cr: cr, endKey: endKey, perLead: perLead, steady: steady, weeks: weeks, total: total, spent: spent, ahead: ahead, reserve: reserve,
+      leftAtReset: Math.max(0, n0(cr.left) - spent - ahead.credits), binding: binding, monthLeads: monthLeads,
       monthCredits: Math.ceil(monthLeads * perLead), daysLeft: weeks.reduce(function (a, w) { return a + w.days; }, 0) };
   }
   function renderPlan() {
@@ -1126,9 +1138,9 @@ footer p { margin: 0; max-width: 90ch; }
     box.appendChild(head);
     var bar = el("div", "plan-bar"), used = el("i"), planned = el("b");
     used.style.width = Math.min(100, n0(cr.used) / n0(cr.limit) * 100) + "%";
-    planned.style.left = used.style.width; planned.style.width = Math.min(100 - Math.min(100, n0(cr.used) / n0(cr.limit) * 100), pl.spent / n0(cr.limit) * 100) + "%";
+    planned.style.left = used.style.width; planned.style.width = Math.min(100 - Math.min(100, n0(cr.used) / n0(cr.limit) * 100), (pl.spent + pl.ahead.credits) / n0(cr.limit) * 100) + "%";
     bar.appendChild(used); bar.appendChild(planned); box.appendChild(bar);
-    box.appendChild(el("p", "note", "Blue: used. Grey: the plan below. The rest goes unused unless the plan changes."));
+    box.appendChild(el("p", "note", "Blue: used. Grey: planned, including enriching ahead. The rest expires at the reset."));
     var t = el("table"), hd = el("thead"), hr = el("tr");
     [["Week of", ""], ["Free sends", "n"], ["New leads", "n"], ["Credits", "n"], ["", ""]].forEach(function (x) { hr.appendChild(el("th", x[1], x[0])); });
     hd.appendChild(hr); t.appendChild(hd);
@@ -1148,11 +1160,26 @@ footer p { margin: 0; max-width: 90ch; }
     fr.appendChild(el("td", "n", fmt(pl.total))); fr.appendChild(el("td", "n", fmt(pl.spent))); fr.appendChild(el("td"));
     tf.appendChild(fr); t.appendChild(tf);
     var sc = el("div", "scroll"); sc.appendChild(t); box.appendChild(sc);
+    function dk(k) { return parseKey(k).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }); }
+    if (pl.ahead.leads) {
+      box.appendChild(el("p", "lead flush", "Enrich ahead: " + fmt(pl.ahead.leads) + " more leads (about " + fmt(pl.ahead.credits) + " credits) between " +
+        dk(pl.ahead.from) + " and " + dk(pl.ahead.to) + ". They're approved now, held, re-checked and loaded from " + dk(pl.ahead.loadFrom) +
+        ", so this cycle's credits don't expire unused."));
+    }
     var msg = pl.binding === "credits"
       ? "Credits are the limit this cycle: they run out before the mailbox does. Use smaller batches or stricter screening."
-      : "The mailbox is the limit, not credits: about " + fmt(pl.leftAtReset) + " credits would be left at the reset." +
-        (pl.leftAtReset > n0(cr.limit) / 4 ? " Another mailbox (ideally on a separate sending domain) or a 3-step sequence would use more of them." : "");
+      : "The mailbox is the limit, not credits. After the weekly batches" + (pl.ahead.leads ? " and enriching ahead" : "") + ", about " +
+        fmt(pl.leftAtReset) + " credits would expire at the reset, including the " + fmt(pl.reserve) + " kept in reserve." +
+        (pl.leftAtReset > n0(cr.limit) / 4 ? " Another mailbox (ideally on a separate sending domain) would use more of them." : "");
     box.appendChild(el("p", "lead flush", msg));
+    var held = state.held.filter(function (h) { return h && h.status !== "loaded"; });
+    if (held.length) {
+      box.appendChild(el("h3", "", "Held batches"));
+      held.forEach(function (h) {
+        box.appendChild(el("p", "note", str(h.label) + ": " + fmt(n0(h.people)) + " approved emails, " + fmt(n0(h.credits)) + " credits spent" +
+          (str(h.load_from) ? ", loads from " + dk(String(h.load_from).slice(0, 10)) : "") + (h.status === "due" ? ". Ready to load." : ".")));
+      });
+    }
     box.appendChild(el("p", "note", "A full month at this pace: about " + fmt(pl.steady) + " new leads a week, " + fmt(pl.monthLeads) + " a month, using about " +
       fmt(pl.monthCredits) + " of " + fmt(n0(cr.limit)) + " credits." + (cr.checked_at ? " Credits checked " + ago(cr.checked_at) + "." : "")));
   }
@@ -1674,6 +1701,10 @@ footer p { margin: 0; max-width: 90ch; }
         $("meta").textContent = "This page fills in when the outbound-leads skill refreshes it from Apollo.";
       }
     }, function () { settle(); setPill("Live updates stopped", "t-bad"); $("updated").textContent = "Reopen the page to reconnect."; });
+    db.collection("held").onSnapshot(function (snap) {
+      state.held = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.slug) o.slug = d.id; return o; });
+      if (state.calc) render();
+    }, function () {});
     db.collection("guard_events").onSnapshot(function (snap) {
       state.guardEvents = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.message_id) o.message_id = d.id; return o; });
       if (state.calc) render();

@@ -39,7 +39,9 @@ Call `slack_search_channels` for the approval channel name in config, or read th
 
 If a tracker canvas ID is set, call `slack_read_canvas` to confirm it is readable. If not, tracking still works through the ledger file, and the canvas can be added later.
 
-Read the credit cycle with `apollo_usage_stats_credit_usage_stats` (lead credits used, left and the cycle's end date) for the report and the monthly plan (`credit-plan.md`).
+## 3b. This month's plan
+
+Gather the inputs and run `scripts/month_plan.py` as `credit-plan.md` sections 1 and 2 describe: the exact credits and cycle from `apollo_usage_stats_credit_usage_stats`, the mailboxes' daily limits and today's sends, credits per approved lead, and what the live sequences have already booked. Every run does this, for every user. The batch can't be sized without it.
 
 ## 4. Report
 
@@ -52,6 +54,8 @@ Preflight
 - Slack: #<channel> OK, tracker canvas OK
 - Config: <complete | missing: ...>
 ```
+
+Then the "This month" block from `credit-plan.md` section 3.
 
 If anything failed, stop after the report and list exactly what the user needs to do. Do not carry on with a partial setup.
 

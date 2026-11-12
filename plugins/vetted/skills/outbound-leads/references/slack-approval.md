@@ -20,6 +20,7 @@ Day 3: <text>
 Day 7: <text>
 Day 14: <text>
 
+<if the batch is held:> Held batch: approved now, loads from <date>. Each email is re-checked against the company's site before it's loaded.
 <if the brief has a test:> Test <id>: A "<text>" · B "<text>". Versions alternate, and each email shows its version.
 <if Claude drafted the copy:> This copy is new. React :white_check_mark: here to approve the templates.
 Groups follow below. Nothing is loaded into Apollo until a group has a :white_check_mark:.
