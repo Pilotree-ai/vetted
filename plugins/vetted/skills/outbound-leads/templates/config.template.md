@@ -45,7 +45,7 @@ senders:
 - apollo_max_active_sequences: 2   # 2 on lower plans. Raise if your plan allows more
 - sending_schedule_name: Normal Business Hours
 - max_emails_per_day: 50          # cap for each new sequence
-- mailbox_daily_limit: 150        # most emails one mailbox sends a day, across all its sequences. Match Settings > Mailboxes in Apollo. A sender can override it with daily_limit
+- mailbox_daily_limit: 250        # most emails one mailbox sends a day, across all its sequences. Match Settings > Mailboxes in Apollo. A sender can override it with daily_limit
 - contact_location_default: "London, United Kingdom"   # set on every contact so sends follow UK hours
 - benchmark_reply_rate: 0.02     # the reply rate a working sequence should reach. The overview judges zero-reply sequences against it
 
@@ -75,6 +75,16 @@ senders:
 ## Live dashboard
 
 - dashboard: on                    # a private claude.ai page per campaign, updated after every step, plus one overview of every sequence. "off" to skip both
+
+## Deliverability guard
+
+Stops sending to companies that refuse an email as spam, pauses sequences that bounce too much, and holds new batches when the whole mailbox is bouncing (see `references/guard.md`).
+
+- guard: on                        # on | off
+- guard_sequence_min_problems: 2   # spam blocks or hard bounces before a sequence can be paused
+- guard_sequence_pct: 4            # and at least this % of its sent emails (Apollo's warning level)
+- guard_mailbox_hold_pct: 3        # hold new batches at this 7-day bounce rate (100+ sent)
+- guard_mailbox_clear_pct: 2       # lift the hold below this
 
 ## A/B tests
 

@@ -43,6 +43,10 @@ Also read `references/lessons-learned.md` once at the start of a run. It is shor
 
 **A/B tests.** A batch can test one change to the first email, usually the closing ask. The two versions alternate across the batch, each person is put on an Apollo list for their version, and the overview shows which version gets more replies. A winner is only proposed once it's clearly ahead, and the default only changes when the user confirms in chat (`references/ab-tests.md`).
 
+**Deliverability guard.** Every reply check also runs the guard (`references/guard.md`). It stops the other contacts at a company that refused an email as spam, pauses a sequence whose bounces and spam blocks pass Apollo's warning level (and resumes it only on a ✅), and holds new batches while the whole mailbox is bouncing. Every action is posted in the approval channel.
+
+**Monthly credit plan.** Credits and mailbox sends are both limited. `references/credit-plan.md` plans each credit cycle week by week from Apollo's exact credit balance and the mailbox forecast. The overview shows it under "This month", and intake and the weekly loop use it to size batches.
+
 **Reply alerts.** When anyone replies to a sequence, post an alert in the approval channel with who replied, which email they answered and a draft response, and record the approver's 👍 or 👎 as an Apollo list on the contact (`references/replies.md`). A routine runs this every two hours on weekdays. Vetted never replies to a prospect itself.
 
 The run can be resumed. Each step writes its output to the campaign folder, so if the user comes back later ("carry on with the agency batch", "check the Slack ticks"), read the brief and the latest working file and pick up from the next step. Do not redo steps that cost credits.

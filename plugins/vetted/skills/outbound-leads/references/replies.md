@@ -110,12 +110,16 @@ Replies (<date> <time>)
 
 If nothing changed, a one-line "No new replies or marks."
 
+## 5. Deliverability guard
+
+After the report, run "Every check" in `guard.md`, and add its one-line summary to the final block. The guard has its own Apollo writes (stopping contacts at a company that refused an email, pausing and resuming sequences), each announced in the approval channel.
+
 ## Scheduled check (no workspace)
 
 A cloud routine runs this file every two hours on weekdays, with the Apollo and Slack connectors and this skill's repo. Its prompt gives the overview URL, the approval channel id and name, the sender's name and mailbox, the approvers and the list names. In that case:
 
 - Read and write the `replies` documents exactly as above, and leave out the workspace extras.
-- Post only in the approval channel named in the prompt. Write to Apollo only the list changes in section 3.
+- Post only in the approval channel named in the prompt. Write to Apollo only the list changes in section 3 and the guard's actions in `guard.md`.
 - Never wait inside a run. Post, save and end.
 - Finish with the section 4 block as the run's final message.
 

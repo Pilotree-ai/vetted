@@ -46,6 +46,7 @@ Apollo's analytics reports come back as a markdown table, and Apollo picks the c
 6. **Daily history.** `apollo_analytics_sync_report` with `range_start` the day after the last history date in `00-overview.json` (or the earliest sequence's `created_at` on a backfill) and `range_end` today, `group_by: ["smart_datetime_day"]`, metrics `num_emails_sent`, `num_emails_delivered`, `num_emails_replied`, `num_emails_bounced`, `email_daily_limit`. Always include yesterday and today again, because their numbers change during the day.
 7. `apollo_email_accounts_index` to match each sender's mailbox to its Apollo `user_id`.
 8. **A/B tests.** Always list the page's `tests` collection (`ArtifactData` `list`, `collection: "tests"`). If it has any document with `status: "running"`, one `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["contact_label_ids"]`, metrics `num_contacts_emailed`, `num_contacts_replied`. Update each running test's `results` as "Results" in `ab-tests.md` describes, in the same batch as the other writes.
+9. **Credits.** `apollo_usage_stats_credit_usage_stats`: save `credits` as `{"limit": lead_credit.limit, "used": lead_credit.consumed, "left": lead_credit.left_over, "cycle_start": current_credit_cycle.start_date, "cycle_end": current_credit_cycle.end_date, "checked_at": "<ISO>"}`. The page builds the monthly plan from it (`credit-plan.md`). With a workspace, also set `credits.per_lead` as `credit-plan.md` describes. On the first refresh after `cycle_end` has passed, post the new month's plan in the approval channel if Slack is available.
 
 ## 3. Write it
 
@@ -62,6 +63,7 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
   "new_sequence": {"daily_cap": 50, "waits": [0, 3, 4, 7]},
   "auto_pause": {"warning_pct": 4, "pause_pct": 6, "window_days": 7, "min_volume": 200},
   "benchmark_reply_rate": 0.02,
+  "credits": {"limit": 3040, "used": 583, "left": 2457, "cycle_start": "<ISO>", "cycle_end": "<ISO>", "checked_at": "<ISO>"},
   "sequences": [{
     "id": "<apollo id>", "name": "UK agencies, partner-led - batch 2 - Sam", "url": "<sequence_url>",
     "campaign": "UK agencies, partner-led",
@@ -93,6 +95,8 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
 - `reached`: step 1's `sent`, the number of people who got the first email. `contacts_total`: sum of `contact_statuses` values that are numbers.
 - `dashboard_url`: the campaign dashboard URL from `outbound/campaigns/<slug>/00-dashboard.json`, where that campaign's sequence name matches. Otherwise `""`.
 - Include sequences that Vetted didn't create too. The mailbox limit counts every email the mailbox sends.
+
+The page also reads the guard's `guard_events`, `guard_pauses` and `guard/state` (`guard.md`) to list every blocked or bounced email, the automatic stops and pauses, and any hold on new batches. The overview refresh never writes those.
 
 The page also reads the `replies` collection, which reply alerts write (`replies.md`). It lists every reply and counts the ones marked 👍 as interested. The overview refresh never writes to `replies`.
 

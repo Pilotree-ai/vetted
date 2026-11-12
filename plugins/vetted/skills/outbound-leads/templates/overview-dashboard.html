@@ -175,6 +175,18 @@ td.rate .num { font-size: 12.5px; }
 .hhead > div { display: grid; gap: 2px; }
 .pad > .note { margin: 0; }
 
+/* This month and guard */
+.plan-head { display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: baseline; }
+.plan-head .big { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 500; }
+.plan-bar { height: 10px; border-radius: 5px; background: var(--line); position: relative; overflow: hidden; }
+.plan-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--info); }
+.plan-bar b { position: absolute; top: 0; bottom: 0; background: var(--bar); opacity: .55; }
+.guard-list { display: grid; gap: 8px; }
+.grow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; }
+.grow .gtext { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.grow .gtext span { display: block; color: var(--muted); font-size: 12px; }
+.pad h3 { font-size: 13px; margin: 4px 0 0; }
+
 /* A/B tests */
 .trow { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(110px, 160px) minmax(0, auto); gap: 6px 12px; align-items: center; }
 .trow .tkey { font-family: var(--font-data); font-weight: 600; font-size: 13px; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; background: var(--paper); border: 1px solid var(--line); }
@@ -282,6 +294,14 @@ footer p { margin: 0; max-width: 90ch; }
         <p class="note" id="steps-note" style="margin: 0"></p>
       </div>
     </div>
+  </section>
+
+  <section class="panel" aria-labelledby="plan-h">
+    <div class="panel-h">
+      <h2 id="plan-h">This month</h2>
+      <span class="note" id="plan-note">Lead credits and mailbox sends, planned week by week</span>
+    </div>
+    <div class="pad" id="plan"><div class="empty"><b>No credit data yet</b>The next refresh reads the credit balance from Apollo.</div></div>
   </section>
 
   <section class="panel" aria-labelledby="camp-h">
@@ -461,7 +481,7 @@ footer p { margin: 0; max-width: 90ch; }
     schedule_owned_by_another_user: "Sending schedule belongs to another Apollo user",
     email_steps_without_approved_template: "A step has no approved email"
   };
-  var state = { doc: null, history: [], replies: [], tests: [], sender: 0, filter: "all", loaded: false, calc: null };
+  var state = { doc: null, history: [], replies: [], tests: [], guardEvents: [], guardPauses: [], guardState: null, sender: 0, filter: "all", loaded: false, calc: null };
 
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) {
@@ -627,7 +647,15 @@ footer p { margin: 0; max-width: 90ch; }
     var al = $("alert"), at = $("alert-text"), br = sent ? bounced / sent : 0, ap = autoPause();
     var hot = c.seqs.filter(function (s) { var e = s.emails || {}; return n0(e.sent) >= 20 && n0(e.bounced) / n0(e.sent) * 100 >= ap.warning_pct; });
     al.className = "alert"; at.textContent = "";
-    if (br > 0.05 || hot.length) {
+    var gs = state.guardState || {};
+    if (gs.hold_new_loads) {
+      al.className = "alert bad";
+      at.appendChild(el("b", "", "New batches are on hold. "));
+      at.appendChild(document.createTextNode(num(gs.rate_7d) !== null
+        ? (gs.rate_7d * 100).toFixed(1) + "% of " + fmt(gs.sent_7d) + " emails bounced or were refused as spam in the last 7 days. Running sequences carry on. Vetted loads nothing new until it's under 2%."
+        : "The deliverability guard stopped new loads. See Deliverability below."));
+      al.hidden = false;
+    } else if (br > 0.05 || hot.length) {
       al.className = "alert bad";
       at.appendChild(el("b", "", hot.length
         ? fmt(hot.length) + " sequence" + (hot.length > 1 ? "s are" : " is") + " at or above Apollo's " + ap.warning_pct + "% bounce warning. "
@@ -648,6 +676,7 @@ footer p { margin: 0; max-width: 90ch; }
     renderPlanner();
     renderVerdicts();
     renderReplies();
+    renderPlan();
     renderCampaigns();
     renderTests();
     renderSteps();
@@ -784,6 +813,7 @@ footer p { margin: 0; max-width: 90ch; }
   // Zero replies only means something once enough people have been emailed. p0 is the chance of
   // seeing no replies at all if the sequence were really getting the expected reply rate.
   var VERDICT = {
+    paused:  { label: "Paused by the guard",    tone: "t-bad",  rank: 0 },
     risk:    { label: "Hurting deliverability", tone: "t-bad",  rank: 0 },
     stuck:   { label: "Not sending",            tone: "t-bad",  rank: 1 },
     failing: { label: "Not working",            tone: "t-bad",  rank: 2 },
@@ -815,7 +845,11 @@ footer p { margin: 0; max-width: 90ch; }
     var p0 = Math.pow(1 - r, n), pctR = Math.round(r * 100);
     var notes = [], v, why, todo;
 
-    if (!s.active) {
+    var gp = state.guardPauses.filter(function (x) { return x && x.sequence_id === s.id && x.status === "paused"; })[0];
+    if (gp) {
+      v = "paused"; why = "Paused automatically: " + fmt(n0(gp.problems)) + " of " + fmt(n0(gp.sent)) + " emails were refused as spam or bounced.";
+      todo = "Check the failed addresses under Deliverability, then react \u2705 on its Slack notice to switch it back on.";
+    } else if (!s.active) {
       v = "off"; why = n0(e.queued) ? fmt(e.queued) + " emails are waiting while it's switched off." : "Switched off.";
       todo = n0(e.queued) ? "Switch it back on in Apollo, or remove the waiting contacts." : "Archive it in Apollo if it's finished.";
     } else if (sentN >= 20 && n0(e.bounced) + n0(e.spam_blocked) >= 2 && badRate >= ap.warning_pct) {
@@ -865,7 +899,7 @@ footer p { margin: 0; max-width: 90ch; }
     var rows = c.seqs.map(function (s) { return { s: s, v: verdictOf(s, ctx) }; }).sort(function (a, b) {
       return VERDICT[a.v.key].rank - VERDICT[b.v.key].rank || b.v.n - a.v.n;
     });
-    var ATT = ["risk", "stuck", "failing", "lagging"];
+    var ATT = ["paused", "risk", "stuck", "failing", "lagging"];
     var counts = {}; rows.forEach(function (x) { counts[x.v.key] = (counts[x.v.key] || 0) + 1; });
     var att = rows.filter(function (x) { return ATT.indexOf(x.v.key) !== -1; }).length;
 
@@ -902,7 +936,7 @@ footer p { margin: 0; max-width: 90ch; }
       if (x.v.notes.length) row.appendChild(el("p", "vnotes", x.v.notes.join(" · ")));
       box.appendChild(row);
     });
-    var failing = (counts.failing || 0) + (counts.risk || 0) + (counts.stuck || 0);
+    var failing = (counts.failing || 0) + (counts.risk || 0) + (counts.stuck || 0) + (counts.paused || 0);
     $("v-note").textContent = failing
       ? fmt(failing) + " sequence" + (failing > 1 ? "s" : "") + " clearly need" + (failing > 1 ? "" : "s") + " action. " + (counts.lagging ? fmt(counts.lagging) + " more lagging." : "")
       : counts.lagging
@@ -1003,6 +1037,124 @@ footer p { margin: 0; max-width: 90ch; }
       "." + (list.every(function (x) { return x.sent < ap.min_volume; })
         ? " Each of your sequences is below that volume, so Apollo won't pause any of them. Bounces still hurt the domain, so treat the lines above as the warning."
         : "")));
+    renderGuard(box);
+  }
+
+  var GTYPE = { spam_blocked: ["Spam blocked", "t-bad"], hard_bounce: ["Hard bounce", "t-bad"], soft_bounce: ["Soft bounce", "t-warn"] };
+  function renderGuard(box) {
+    var pauses = state.guardPauses.filter(function (x) { return x && x.status === "paused"; });
+    if (pauses.length) {
+      box.appendChild(el("h3", "", "Paused automatically"));
+      pauses.forEach(function (x) {
+        box.appendChild(el("p", "note", str(x.sequence_name) + ": " + fmt(n0(x.problems)) + " of " + fmt(n0(x.sent)) + " emails failed" +
+          (num(x.rate) !== null ? " (" + (x.rate * 100).toFixed(1) + "%)" : "") + ". React \u2705 on its Slack notice to switch it back on."));
+      });
+    }
+    var ev = state.guardEvents.filter(function (x) { return x && typeof x === "object"; }).slice()
+      .sort(function (a, b) { return str(b.failed_at).localeCompare(str(a.failed_at)); });
+    box.appendChild(el("h3", "", "Blocked and bounced emails"));
+    if (!ev.length) {
+      box.appendChild(el("p", "note", "No records yet. The deliverability guard records every refused or bounced email when it runs with the reply check."));
+      return;
+    }
+    var list = el("div", "guard-list");
+    ev.slice(0, 25).forEach(function (x) {
+      var t = GTYPE[x.type] || [str(x.type) || "Failed", ""], row = el("div", "grow");
+      row.appendChild(pill(t[0], t[1]));
+      var tx = el("div", "gtext");
+      tx.appendChild(document.createTextNode([str(x.name), str(x.company)].filter(Boolean).join(", ") + (str(x.domain) ? " (" + x.domain + ")" : "")));
+      var d = Date.parse(str(x.failed_at));
+      tx.appendChild(el("span", "", [str(x.sequence_name), num(x.step) ? "step " + x.step : "", d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""].filter(Boolean).join(" \u00b7 ")));
+      var a = x.action || {}, stopped = Array.isArray(a.stopped) ? a.stopped : [];
+      var act = a.kind === "stopped_company" ? "Stopped " + fmt(stopped.length) + " other contact" + (stopped.length === 1 ? "" : "s") + " at " + str(x.domain)
+        : a.kind === "none" ? (str(a.note) || "Nobody else at this company was still active")
+        : a.kind === "recorded" ? "Recorded only (temporary failure)" : "";
+      if (act) tx.appendChild(el("span", "", act));
+      row.appendChild(tx); list.appendChild(row);
+    });
+    box.appendChild(list);
+    if (ev.length > 25) box.appendChild(el("p", "note", "Showing the latest 25 of " + fmt(ev.length) + "."));
+  }
+
+  /* This month: credits and mailbox, planned week by week (references/credit-plan.md) */
+  function creditPlan(c) {
+    var cr = (state.doc || {}).credits;
+    if (!cr || !num(cr.limit)) return null;
+    var waits = defaults().waits, offs = offsets(waits), perPerson = waits.length;
+    var weekOff = offs.map(function (o) { return Math.floor(o / 7); });
+    var launchCost = Math.max(1, weekOff.filter(function (w) { return w === 0; }).length);
+    var endKey = localKey(cr.cycle_end, c.tz), startKey = localKey(cr.cycle_start, c.tz);
+    var people = c.seqs.filter(function (s) { var k = localKey(s.created_at, c.tz); return k && startKey && k >= startKey; })
+      .reduce(function (a, s) { return a + reachedOf(s); }, 0);
+    var perLead = num(cr.per_lead) || (people ? n0(cr.used) / people : 1.5);
+    perLead = Math.round(Math.min(3, Math.max(1, perLead)) * 10) / 10;
+    var steady = Math.floor(5 * c.limit / perPerson), creditsLeft = n0(cr.left);
+    var weeks = [], cur = null;
+    c.days.forEach(function (k, i) {
+      if (!endKey || k > endKey) return;
+      var mon = addDays(k, -((parseKey(k).getUTCDay() + 6) % 7));
+      if (!cur || cur.monday !== mon) { cur = { monday: mon, days: 0, free: 0, launch: k === mon }; weeks.push(cur); }
+      cur.days++; cur.free += Math.max(0, c.limit - c.used[i]);
+    });
+    var N = [], binding = "mailbox", spent = 0;
+    weeks.forEach(function (w, wi) {
+      if (!w.launch) { N.push(0); w.n = 0; w.note = "No new batch: batches start on Mondays"; return; }
+      var carry = 0;
+      weekOff.forEach(function (wo) { if (wo > 0 && wi - wo >= 0) carry += N[wi - wo]; });
+      var n = Math.max(0, Math.floor((w.free - carry) / launchCost));
+      n = Math.min(n, steady);
+      var byCredit = Math.floor(creditsLeft / perLead);
+      if (byCredit < n) { n = byCredit; binding = "credits"; }
+      creditsLeft -= Math.ceil(n * perLead); spent += Math.ceil(n * perLead);
+      N.push(n); w.n = n; w.credits = Math.ceil(n * perLead);
+      if (w.days < 5) w.note = fmt(w.days) + " sending days before the reset";
+    });
+    var total = N.reduce(function (a, b) { return a + b; }, 0);
+    var monthLeads = Math.round(steady * 4.3);
+    return { cr: cr, endKey: endKey, perLead: perLead, steady: steady, weeks: weeks, total: total, spent: spent,
+      leftAtReset: Math.max(0, n0(cr.left) - spent), binding: binding, monthLeads: monthLeads,
+      monthCredits: Math.ceil(monthLeads * perLead), daysLeft: weeks.reduce(function (a, w) { return a + w.days; }, 0) };
+  }
+  function renderPlan() {
+    var c = state.calc, box = $("plan"), pl = creditPlan(c);
+    box.textContent = "";
+    if (!pl) { var e = el("div", "empty"); e.appendChild(el("b", "", "No credit data yet")); e.appendChild(document.createTextNode("The next refresh reads the credit balance from Apollo.")); box.appendChild(e); return; }
+    var cr = pl.cr, endLabel = pl.endKey ? parseKey(pl.endKey).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "–";
+    var head = el("div", "plan-head");
+    var a = el("div"); a.appendChild(el("span", "eyebrow", "Lead credits left")); a.appendChild(el("div", "big", fmt(n0(cr.left)) + " of " + fmt(n0(cr.limit)))); head.appendChild(a);
+    head.appendChild(el("span", "note", "Resets " + endLabel + " \u00b7 " + fmt(pl.daysLeft) + " sending days left \u00b7 about " + pl.perLead + " credits per approved lead \u00b7 mailbox limit " + fmt(c.limit) + " a day"));
+    box.appendChild(head);
+    var bar = el("div", "plan-bar"), used = el("i"), planned = el("b");
+    used.style.width = Math.min(100, n0(cr.used) / n0(cr.limit) * 100) + "%";
+    planned.style.left = used.style.width; planned.style.width = Math.min(100 - Math.min(100, n0(cr.used) / n0(cr.limit) * 100), pl.spent / n0(cr.limit) * 100) + "%";
+    bar.appendChild(used); bar.appendChild(planned); box.appendChild(bar);
+    box.appendChild(el("p", "note", "Blue: used. Grey: the plan below. The rest goes unused unless the plan changes."));
+    var t = el("table"), hd = el("thead"), hr = el("tr");
+    [["Week of", ""], ["Free sends", "n"], ["New leads", "n"], ["Credits", "n"], ["", ""]].forEach(function (x) { hr.appendChild(el("th", x[1], x[0])); });
+    hd.appendChild(hr); t.appendChild(hd);
+    var tb = el("tbody");
+    pl.weeks.forEach(function (w) {
+      var tr = el("tr");
+      tr.appendChild(el("td", "", parseKey(w.monday).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })));
+      tr.appendChild(el("td", "n", fmt(w.free)));
+      tr.appendChild(el("td", "n " + (w.n ? "" : "zero"), fmt(w.n)));
+      tr.appendChild(el("td", "n " + (w.credits ? "" : "zero"), w.credits ? fmt(w.credits) : "–"));
+      tr.appendChild(el("td", "note", str(w.note)));
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    var tf = el("tfoot"), fr = el("tr");
+    fr.appendChild(el("td", "", "Rest of the cycle")); fr.appendChild(el("td"));
+    fr.appendChild(el("td", "n", fmt(pl.total))); fr.appendChild(el("td", "n", fmt(pl.spent))); fr.appendChild(el("td"));
+    tf.appendChild(fr); t.appendChild(tf);
+    var sc = el("div", "scroll"); sc.appendChild(t); box.appendChild(sc);
+    var msg = pl.binding === "credits"
+      ? "Credits are the limit this cycle: they run out before the mailbox does. Use smaller batches or stricter screening."
+      : "The mailbox is the limit, not credits: about " + fmt(pl.leftAtReset) + " credits would be left at the reset." +
+        (pl.leftAtReset > n0(cr.limit) / 4 ? " Another mailbox (ideally on a separate sending domain) or a 3-step sequence would use more of them." : "");
+    box.appendChild(el("p", "lead flush", msg));
+    box.appendChild(el("p", "note", "A full month at this pace: about " + fmt(pl.steady) + " new leads a week, " + fmt(pl.monthLeads) + " a month, using about " +
+      fmt(pl.monthCredits) + " of " + fmt(n0(cr.limit)) + " credits." + (cr.checked_at ? " Credits checked " + ago(cr.checked_at) + "." : "")));
   }
 
   /* 3. Daily history */
@@ -1381,7 +1533,7 @@ footer p { margin: 0; max-width: 90ch; }
       if (!seqs.length && (prev.sequences || []).length) throw { code: "empty" };
 
       var counts = {}, shows = {}, done = 0;
-      var total = seqs.length + seqs.filter(function (c) { return c.active; }).length + 4;
+      var total = seqs.length + seqs.filter(function (c) { return c.active; }).length + 5;
       function step(label) { done++; setRefreshUI("busy", label + " (" + done + " of " + total + ")"); }
       await pool(seqs, 4, async function (c) {
         var m = await apollo(mcp, "apollo_emailer_messages_search", { emailer_campaign_id: c.id, display_mode: "metadata_mode" });
@@ -1404,6 +1556,16 @@ footer p { margin: 0; max-width: 90ch; }
       step("Reading daily activity");
       var accounts = (await apollo(mcp, "apollo_email_accounts_index", {})).email_accounts || [];
       step("Reading mailboxes");
+      var credits = prev.credits || null;
+      try {
+        var cu = await apollo(mcp, "apollo_usage_stats_credit_usage_stats", {}), cs = cu.credit_usage_stats || {}, lc = cs.lead_credit || {};
+        var cyc = cu.current_credit_cycle || cs.current_credit_cycle || {};
+        if (num(lc.limit) !== null) credits = { limit: toNum(lc.limit), used: toNum(lc.consumed), left: toNum(lc.left_over),
+          cycle_start: str(cyc.start_date), cycle_end: str(cyc.end_date), checked_at: new Date().toISOString(),
+          per_lead: prev.credits && num(prev.credits.per_lead) !== null ? prev.credits.per_lead : undefined };
+        if (credits && credits.per_lead === undefined) delete credits.per_lead;
+      } catch (e) { /* credits are optional; keep the last known numbers */ }
+      step("Reading credits");
       var running = state.tests.filter(function (t) { return t && t.status === "running" && Array.isArray(t.variants); });
       var testWrites = [];
       if (running.length) {
@@ -1460,7 +1622,7 @@ footer p { margin: 0; max-width: 90ch; }
         return o;
       });
       var doc = Object.assign({}, prev, {
-        updated_at: new Date().toISOString(), senders: senders, sequences: outSeqs,
+        updated_at: new Date().toISOString(), senders: senders, sequences: outSeqs, credits: credits,
         auto_pause: ap ? { warning_pct: toNum(ap.warning_threshold_pct) || 4, pause_pct: toNum(ap.auto_pause_threshold_pct) || 6,
           window_days: toNum(ap.evaluation_window_days) || 7, min_volume: toNum(ap.min_volume) || 200 } : prev.auto_pause
       });
@@ -1512,6 +1674,18 @@ footer p { margin: 0; max-width: 90ch; }
         $("meta").textContent = "This page fills in when the outbound-leads skill refreshes it from Apollo.";
       }
     }, function () { settle(); setPill("Live updates stopped", "t-bad"); $("updated").textContent = "Reopen the page to reconnect."; });
+    db.collection("guard_events").onSnapshot(function (snap) {
+      state.guardEvents = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.message_id) o.message_id = d.id; return o; });
+      if (state.calc) render();
+    }, function () {});
+    db.collection("guard_pauses").onSnapshot(function (snap) {
+      state.guardPauses = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.sequence_id) o.sequence_id = d.id; return o; });
+      if (state.calc) render();
+    }, function () {});
+    db.doc("guard/state").onSnapshot(function (snap) {
+      state.guardState = snap.exists ? snap.data() : null;
+      if (state.calc) render();
+    }, function () {});
     db.collection("tests").onSnapshot(function (snap) {
       state.tests = snap.docs.map(function (d) { var o = Object.assign({}, d.data() || {}); if (!o.id) o.id = d.id; return o; });
       if (state.calc) renderTests();

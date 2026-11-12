@@ -39,6 +39,8 @@ Call `slack_search_channels` for the approval channel name in config, or read th
 
 If a tracker canvas ID is set, call `slack_read_canvas` to confirm it is readable. If not, tracking still works through the ledger file, and the canvas can be added later.
 
+Read the credit cycle with `apollo_usage_stats_credit_usage_stats` (lead credits used, left and the cycle's end date) for the report and the monthly plan (`credit-plan.md`).
+
 ## 4. Report
 
 Give one short status block, then move to intake:

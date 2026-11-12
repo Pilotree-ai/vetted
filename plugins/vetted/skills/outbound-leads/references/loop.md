@@ -132,7 +132,7 @@ Groups ticked later in the week are loaded by the `daily` phase, as long as the 
 Say what's happening in one line per step. It runs in the workspace repo (see the README's "Weekly loop" section), because scheduled runs only see what is committed there.
 
 1. Run a normal intake and Gate 1 for the standing brief. Create the campaign folder and the dashboard.
-2. Ask, with `AskUserQuestion`: weekly leads, weekly credit cap, and what to do when Go has no tick by Monday. Derive `market_timezone` from the brief's country and confirm it in the same question set. Show the credit cap as a standing approval: "Each week may spend up to <cap> credits on enrichment without asking."
+2. Ask, with `AskUserQuestion`: weekly leads, weekly credit cap, and what to do when Go has no tick by Monday. Derive `market_timezone` from the brief's country and confirm it in the same question set. Suggest the weekly leads and cap from the monthly plan (`credit-plan.md`). Show the credit cap as a standing approval: "Each week may spend up to <cap> credits on enrichment without asking."
 3. Write the `## Weekly loop` settings, `loop.json` (`cap_accepted_at` now) and an empty `seen.csv`. Set `loop: on`.
 4. Commit and push to `main`.
 5. Create the scheduled routine with the `/schedule` skill: the workspace repo, the Apollo and Slack connectors, and these triggers in the market time zone (shown for `Europe/London`):
