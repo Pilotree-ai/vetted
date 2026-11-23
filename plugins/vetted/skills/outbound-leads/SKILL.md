@@ -47,7 +47,7 @@ Also read `references/lessons-learned.md` once at the start of a run. It is shor
 
 **Monthly credit plan (every run).** Credits and mailbox sends are both limited, and unused Apollo credits expire at the end of each cycle. Every run starts with the plan: preflight reads the exact credit balance, cycle dates and mailbox limits from Apollo, and `scripts/month_plan.py` works out the room week by week plus how many leads to **enrich ahead** with credits that would otherwise expire (`references/credit-plan.md`). Intake sizes the batch against it. Enrich-ahead batches are approved now, held, re-checked and loaded after the reset. The overview shows the same plan under "This month".
 
-**Reply alerts.** When anyone replies to a sequence, post an alert in the approval channel with who replied, which email they answered and a draft response, and record the approver's 👍 or 👎 as an Apollo list on the contact (`references/replies.md`). A routine runs this every two hours on weekdays. Vetted never replies to a prospect itself.
+**Reply alerts.** When anyone replies to a sequence, post an alert in the approval channel with who replied, which email they answered and a draft response, and record the approver's 👍 or 👎 as an Apollo list on the contact (`references/replies.md`). A routine runs this every two hours on weekdays, starting with a cheap check (`references/quick-check.md`) that ends the run when nothing has changed. Vetted never replies to a prospect itself.
 
 The run can be resumed. Each step writes its output to the campaign folder, so if the user comes back later ("carry on with the agency batch", "check the Slack ticks"), read the brief and the latest working file and pick up from the next step. Do not redo steps that cost credits.
 
@@ -64,9 +64,15 @@ Pause and wait for the user at each one. Do not treat silence, a vague "go on" g
 3. **Slack approval.** Each group of 10 needs a tick reaction from an approver, and any removals named in the thread are honoured. No Apollo contacts or sequences are created for a group until it is ticked.
 4. **Overrides, then go-live.** After enrolling, check that every contact's step-1 override was actually written. Remove anyone who was not personalised. Only then ask the user to confirm switching the sequence on.
 
-## Choosing parallelism
+## Keeping token use low
 
-This skill is built for Claude Code. The website screen and research steps are the slow ones, so run them with parallel subagents: about 10 companies per agent, up to 6 agents at once. Give each agent the brief's rules and the relevant prompt file, and have it return the structured output the prompt file defines. Save each agent's results as they come back, so nothing is lost if the session is interrupted.
+Every turn re-reads the whole conversation, so a long session with large tool results is what makes a run expensive. One 241-turn session averaged 470k tokens a turn and used 113M.
+
+- **Subagents do the heavy reading.** The website screen and research run in parallel subagents: about 10 companies per agent, up to 6 at once, with `model: "sonnet"`. Each agent writes its results to a file in the campaign folder and replies with only the path, the counts and any failures. Never bring the full JSON back into the main conversation.
+- **Keep raw data out of the main conversation.** Large Apollo responses go to a subagent (`model: "haiku"` for pure field extraction) or a file. Read them with a short script, and print only counts and the fields needed.
+- **Batch calls.** Make independent calls in one message instead of one per turn.
+- **Read once.** Don't re-read a file or re-fetch data already in the conversation or the working files.
+- **Start fresh at each gate.** The working files hold the run's state. When a gate is waiting on someone, end with: "Safe to `/clear` here. To continue, say: carry on with <batch label>." A resumed session reads the brief and latest working file, and **asks the open gate again**. "Carry on" never counts as approving it.
 
 ## Email voice (applies to every word that might be sent)
 

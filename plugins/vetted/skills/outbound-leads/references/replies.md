@@ -5,7 +5,7 @@ Replies are rare, and a fast, relevant answer is what turns one into a call. Thi
 1. **Alert.** When someone replies to any sequence, post an alert in the approval channel. It says who replied, their company, which email they answered and what that email promised, with a draft response in the thread.
 2. **Mark.** An approver reacts 👍 (interested) or 👎 (not interested) on the alert. Vetted records the outcome in Apollo as a list on the contact, and on the overview page.
 
-Read this file when the user asks to set up or check reply alerts, when they ask "any replies?", and at the start of every scheduled reply check.
+Read this file when the user asks to set up or check reply alerts, when they ask "any replies?", and when `quick-check.md` finds something to act on. A scheduled check starts with `quick-check.md`, not this file.
 
 **Vetted never replies to a prospect.** The alert and draft are for the sender, who reads the real reply in their own inbox and answers it themselves. Claude can't see what the prospect wrote: Apollo only records *that* they replied. Say so in every alert.
 
@@ -122,6 +122,7 @@ List the overview's `held` collection. For each with `status: "held"` whose `loa
 
 A cloud routine runs this file every two hours on weekdays, with the Apollo and Slack connectors and this skill's repo. Its prompt gives the overview URL, the approval channel id and name, the sender's name and mailbox, the approvers and the list names. In that case:
 
+- Start with `quick-check.md`, and run only the sections it points to.
 - Read and write the `replies` documents exactly as above, and leave out the workspace extras.
 - Post only in the approval channel named in the prompt. Write to Apollo only the list changes in section 3 and the guard's actions in `guard.md`.
 - Never wait inside a run. Post, save and end.
@@ -133,6 +134,6 @@ A cloud routine runs this file every two hours on weekdays, with the Apollo and 
 2. Make sure the overview page exists (`overview.md`), since the alerts are stored there.
 3. Create the routine with the `/schedule` skill: the skill's repo, the Apollo and Slack connectors, and cron `0 7-21/2 * * 1-5` (UTC, every two hours on weekdays). The prompt:
 
-> Run the outbound-leads skill's reply check. Read `plugins/vetted/skills/outbound-leads/references/replies.md` and follow "Scheduled check (no workspace)" and sections 1 to 4. Overview URL: <url>. Approval channel: #<name> (<id>). Sender: <name>, mailbox <mailbox>. Approvers: <any | ids>. Lists: Vetted - Interested, Vetted - Not interested. Never wait for input.
+> Run the outbound-leads skill's reply check. Read `plugins/vetted/skills/outbound-leads/references/quick-check.md` and follow it. Read `replies.md` or `guard.md` only when it tells you to, and then follow "Scheduled check (no workspace)" in `replies.md`. Overview URL: <url>. Approval channel: #<name> (<id>). Sender: <name>, mailbox <mailbox>. Approvers: <any | ids>. Lists: Vetted - Interested, Vetted - Not interested. Never wait for input.
 
 4. Offer a test run straight away. The first run posts alerts for every reply so far that has no document yet. If the user wants only new replies alerted, first save documents for the existing replies with `outcome: "pending"` and no `slack`, and the alert step skips them.

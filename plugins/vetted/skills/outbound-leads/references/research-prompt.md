@@ -49,10 +49,12 @@ Screen evidence and facts already found, per company:
 People:
 {people}
 
-Return a JSON array only, one object per person, with: id, first, last, org,
+Write a JSON array to {output_file}, one object per person, with: id, first, last, org,
 short_name, email, decision, drop_reason, subject, opener, evidence, why_fit{extra_fields}.
+Reply with only the path, the send and drop counts, and any sites that failed.
 ```
 
+- `{output_file}` is `outbound/campaigns/<slug>/.work/research-<n>.json`, one per chunk. Merge them with a short script, without printing them.
 - `{offer_link}` is what the opener should connect to, e.g. "the time their team spends on monthly client reporting".
 - `{opener_pattern_line}`: if the brief has an opener pattern, add `\n   Follow this pattern: <pattern>`. Otherwise leave it out.
 - `{extra_fields}`: any extra field the offer needs, e.g. `, buyer_question` when the opener pattern needs a likely customer question per company.

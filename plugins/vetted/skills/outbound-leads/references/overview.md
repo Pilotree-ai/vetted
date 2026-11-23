@@ -36,15 +36,23 @@ If the page needs republishing after a skill update, read it first with `Artifac
 
 Every call here is read-only and costs no credits.
 
+**Keep it cheap.** Make independent calls in one message (all of step 2's calls together, likewise the report batches). Don't print `apollo_emailer_campaigns_search` or the saved page documents: read them with a short script and print only what's needed.
+
 Apollo's analytics reports come back as a markdown table, and Apollo picks the column order itself, not the order the metrics were asked for. Always read a value by its column header ("Num emails sent", "Email daily limit" and so on), never by position. A swapped column once recorded a daily limit of 17 with 150 sent.
 
 1. `apollo_emailer_campaigns_search` (`per_page` 100, page through all of them). Skip `archived: true`. For each sequence, keep `id`, `name`, `sequence_url`, `active`, `created_at`, `last_used_at`, `max_emails_per_day`, `user_id`, `emailer_steps` (position, `wait_time`) and `unique_delivered`.
 2. For each sequence, `apollo_emailer_messages_search` with `emailer_campaign_id` and `display_mode: "metadata_mode"`. From `status_counts`, read `scheduled` (queued), `delayed` (scheduled but held back by a sending limit), `sent`, `delivered`, `bounced`, `replied`, `spam_blocked` and `demoed` (interested). A missing status means 0.
-3. **By step.** One `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["emailer_step_id"]`, metrics `num_emails_sent`, `num_emails_replied`, `num_emails_bounced`. Each row is labelled `<sequence name>: Step <n>`. Match rows to sequences by exact name and step number.
-4. **Queue by step.** For each **active** sequence, `apollo_emailer_campaigns_show`, keeping only the top-level `emailer_steps[].counts.active` (contacts waiting at each step), `emailer_campaign.contact_statuses`, `emailer_campaign.auto_pause_config` and `sending_diagnostics.issues`. These responses are large because they include the templates. With more than 5 active sequences, give the `show` calls to one subagent and ask it for exactly those fields as compact JSON. For a sequence that is off, the step counts aren't needed.
+3. **By step.** `apollo_analytics_sync_report` with `date_range` `{"modality": "all_time"}`, `group_by: ["emailer_step_id"]`, metrics `num_emails_sent`, `num_emails_replied`, `num_emails_bounced`, and `filters.emailer_campaign_ids` set to 10 sequences at a time (one call per 10). Apollo's reports stop at 50 rows ("Showing first 50 of 72 rows"), and one unfiltered call once dropped the 10 newest sequences, so "people contacted" showed 374 instead of 641. Each row is labelled `<sequence name>: Step <n>`. Match rows to sequences by exact name and step number. A step with no row is 0.
+4. **Queue by step.** For each **active** sequence, `apollo_emailer_campaigns_show`, keeping only the top-level `emailer_steps[].counts.active` (contacts waiting at each step), `emailer_campaign.contact_statuses`, `emailer_campaign.auto_pause_config` and `sending_diagnostics.issues`. These responses are large (about 12 KB each) because they include the templates, so fetch only what changed:
+   - Build each active sequence's `refresh_sig`: `active|last_used_at|scheduled|delayed|sent|delivered|bounced|replied|spam_blocked`, from steps 1 and 2.
+   - **Reuse** its step `active` counts, `contact_statuses` and `issues` from the current `overview/current` if `refresh_sig` is unchanged, `show_checked_at` is under 7 days old, and `contact_statuses` isn't empty. Keep the old `show_checked_at`.
+   - **Fetch** the rest, and set their `show_checked_at` to now. With more than 5 to fetch, use subagents with `model: "haiku"`, 5 sequences each. Each makes its `show` calls in one message, writes exactly those fields as compact JSON to a file, and replies with only the path and any failed ids.
+   - Take `auto_pause` from any `show` response, or keep the current value if nothing was fetched.
+   - For a sequence that is off, the step counts aren't needed.
 5. **Mailbox limit and today's sends.** `apollo_analytics_sync_report` with `date_range` `{"modality": "today"}`, `group_by: ["email_account_id"]` (rows are labelled with the mailbox address), metrics `email_daily_limit`, `num_emails_sent`. Don't group by `send_from_email`: Apollo rejects `email_daily_limit` with it. Query one day only, because over a longer range `email_daily_limit` comes back summed. If Apollo returns no limit, use the sender's `daily_limit` from config, else `mailbox_daily_limit` (default 150).
-6. **Daily history.** `apollo_analytics_sync_report` with `range_start` the day after the last history date in `00-overview.json` (or the earliest sequence's `created_at` on a backfill) and `range_end` today, `group_by: ["smart_datetime_day"]`, metrics `num_emails_sent`, `num_emails_delivered`, `num_emails_replied`, `num_emails_bounced`, `email_daily_limit`. Always include yesterday and today again, because their numbers change during the day.
-7. `apollo_email_accounts_index` to match each sender's mailbox to its Apollo `user_id`.
+6. **Daily history.** `apollo_analytics_sync_report` with `range_start` the oldest history record still marked `partial: true`, else the day after the last history date (or the earliest sequence's `created_at` on a backfill), and `range_end` today, `group_by: ["smart_datetime_day"]`, metrics `num_emails_sent`, `num_emails_delivered`, `num_emails_replied`, `num_emails_bounced`, `email_daily_limit`. Always include yesterday and today again, because their numbers change during the day. Only today's record keeps `partial: true`.
+7. `apollo_email_accounts_index` to match each sender's mailbox to its Apollo `user_id`. Every active mailbox it lists is a sender, including one connected since the last refresh: add it to `senders` (name from config, else the address before the @, capitalised).
+7a. **Mailbox per sequence.** `apollo_analytics_sync_report` with `date_range` `{"modality": "all_time"}`, `group_by: ["emailer_campaign_id"]`, `pivot_group_by: ["email_account_id"]`, metric `num_emails_sent`, in the same batches of 10 sequences as step 3. Rows are sequence names, columns are mailbox addresses. A sequence's `mailbox` is the column with most of its sends. Several mailboxes can sit under one Apollo user, so `owner_user_id` can't tell them apart.
 8. **A/B tests.** Always list the page's `tests` collection (`ArtifactData` `list`, `collection: "tests"`). If it has any document with `status: "running"`, one `apollo_analytics_sync_report` call: `date_range` `{"modality": "all_time"}`, `group_by: ["contact_label_ids"]`, metrics `num_contacts_emailed`, `num_contacts_replied`. Update each running test's `results` as "Results" in `ab-tests.md` describes, in the same batch as the other writes.
 9. **Credits.** `apollo_usage_stats_credit_usage_stats`: save `credits` as `{"limit": lead_credit.limit, "used": lead_credit.consumed, "left": lead_credit.left_over, "cycle_start": current_credit_cycle.start_date, "cycle_end": current_credit_cycle.end_date, "checked_at": "<ISO>"}`. The page builds the monthly plan from it (`credit-plan.md`). With a workspace, also set `credits.per_lead` as `credit-plan.md` describes. On the first refresh after `cycle_end` has passed, post the new month's plan in the approval channel if Slack is available.
 
@@ -67,7 +75,7 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
   "sequences": [{
     "id": "<apollo id>", "name": "UK agencies, partner-led - batch 2 - Sam", "url": "<sequence_url>",
     "campaign": "UK agencies, partner-led",
-    "active": true, "archived": false, "owner_user_id": "<user_id>", "created_at": "<ISO>", "last_used_at": "<ISO>",
+    "active": true, "archived": false, "owner_user_id": "<user_id>", "mailbox": "sam@acme.com", "created_at": "<ISO>", "last_used_at": "<ISO>",
     "daily_cap": 50,
     "steps": [
       {"position": 1, "wait": 0, "active": 25, "sent": 25, "replied": 1, "bounced": 0},
@@ -84,7 +92,8 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
 
 - `campaign`: the batch label from the campaign's `brief.md` when the sequence came from a Vetted campaign. Otherwise leave it out, and the page groups by sequence name, dropping endings such as "- batch 2", "- US batch 1" and "- <sender>".
 - `timezone`: `market_timezone` from config.
-- `senders[]`: `daily_limit` and `sent_today` from step 5, with `limit_source` `"apollo"` or `"config"`.
+- `senders[]`: one per active mailbox (step 7), `daily_limit` and `sent_today` from step 5, with `limit_source` `"apollo"` or `"config"`. With two or more, the page opens on "All mailboxes" (limits and today's sends added up, every sequence) and has one view per mailbox for the room left on it.
+- `mailbox`: from step 7a. A sequence that hasn't sent yet takes the sender whose name ends its sequence name ("- Sam"), else the brief's sender mailbox. The page puts each sequence under its `mailbox`, and falls back to `owner_user_id` only when it has none.
 - `max_active_sequences`: `apollo_max_active_sequences` from config, or `null` if the plan allows more than are in use.
 - `new_sequence`: `max_emails_per_day` and the `step_days` from config, turned into Apollo waits (days 0, 3, 7, 14 become 0, 3, 4, 7).
 - `auto_pause`: from `auto_pause_config` (`warning_threshold_pct`, `auto_pause_threshold_pct`, `evaluation_window_days`, `min_volume`) of any active sequence. They are account settings.
@@ -93,6 +102,7 @@ Write everything in one `ArtifactData` `action: "batch"`: the `overview/current`
 - `contact_statuses`: from `show`, numbers only (leave out any value Apollo returns as "loading").
 - `steps[]`: `active` from step 4 (0 for a sequence that is off), and `sent`, `replied` and `bounced` from step 3.
 - `reached`: step 1's `sent`, the number of people who got the first email. `contacts_total`: sum of `contact_statuses` values that are numbers.
+- `refresh_sig`, `show_checked_at`: from step 4. If either is missing, that sequence is simply fetched again.
 - `dashboard_url`: the campaign dashboard URL from `outbound/campaigns/<slug>/00-dashboard.json`, where that campaign's sequence name matches. Otherwise `""`.
 - Include sequences that Vetted didn't create too. The mailbox limit counts every email the mailbox sends.
 
@@ -110,7 +120,7 @@ The page also reads the `replies` collection, which reply alerts write (`replies
 
 - `queued`: total queued across all sequences, only on today's record (it is a snapshot taken at the refresh).
 - `partial: true` on today's record. The next refresh rewrites it with the final numbers.
-- History covers the whole Apollo workspace. With more than one sender it isn't split by mailbox.
+- History covers the whole Apollo workspace. With more than one sender it isn't split by mailbox, and `daily_limit` is the mailboxes' limits added up.
 
 **Refresh from Apollo button.** The page can also refresh itself: anyone who can edit it gets a Refresh from Apollo button that makes the same read-only calls as section 2 with the viewer's own Apollo connection, then writes `overview/current`, the last two `history` days and running tests' `results` in the same shape. It needs the page published with `capabilities` `{"db": {"rules": [{"path": "", "read": "view", "write": "admin"}]}, "user": {}, "mcp": {"servers": [{"server": "<Apollo connector>", "tools": ["apollo_emailer_campaigns_search", "apollo_emailer_messages_search", "apollo_emailer_campaigns_show", "apollo_analytics_sync_report", "apollo_email_accounts_index"]}]}}`. When this section's fields change, change the page's refresh code to match (`refreshFromApollo` in the template).
 
@@ -142,7 +152,8 @@ Don't work out the forecast in chat. The page's numbers are the reference.
 A daily cloud routine can refresh the overview with only this skill's repo and the Apollo connector, without an `outbound/` folder. In that case:
 
 - The routine's prompt gives the overview URL and the config values that would otherwise come from `outbound/config.md`: time zone, fallback daily limit, new-sequence cap and step days, senders, and the active-sequence limit.
-- Read the versions from the page itself instead of `00-overview.json`: `ArtifactData` `get` on `overview/current`, and `list` on `history` (`query.limit` 1000, `out_dir` a temp folder). The latest history date is where step 6 starts.
+- The prompt's sender names are only labels. Step 7 decides who is a sender, so every active mailbox appears even if the prompt lists fewer.
+- Read the versions from the page itself instead of `00-overview.json`: `ArtifactData` `get` on `overview/current` (with `out_dir`), and `list` on `history` (`query.limit` 1000, `out_dir` a temp folder). The history records set where step 6 starts.
 - Build the JSON files in a temp folder and write them exactly as in section 3.
 - Leave out `campaign` and `dashboard_url`, which need the workspace files.
 - Never create a page and never republish one. If the `ArtifactData` tool is missing or a write is refused, end the run and say why in the final message.

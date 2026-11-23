@@ -30,7 +30,7 @@ If the site is blocked to bots, redirects somewhere unrelated, is a holding page
 
 ## Output per company
 
-Return one JSON object per company. Subagents return a JSON array of these.
+One JSON object per company. Subagents write a JSON array of these to their output file.
 
 ```json
 {
@@ -66,11 +66,12 @@ When delegating a chunk of about 10 companies, give each agent:
 - the qualification rules section of the brief, verbatim
 - this file's "How to screen one company" and "Output per company" sections
 - its list of companies with domains
-- the instruction: "Use WebFetch to read each site. Return only the JSON array. Do not guess. If a page does not load, mark the affected rules unclear and say why."
+- its output file: `outbound/campaigns/<slug>/.work/screen-<n>.json`
+- the instruction: "Use WebFetch to read each site. Write the JSON array to your output file. Reply with only the path, the qualify, unclear and drop counts, and any sites that failed. Do not guess. If a page does not load, mark the affected rules unclear and say why."
 
 ## After the screen
 
-Merge into `outbound/campaigns/<slug>/02-screen.json`. Report:
+Merge the output files with a short script into `outbound/campaigns/<slug>/02-screen.json`, without printing them. Report:
 
 "Screened <n> companies: <q> qualify, <u> unclear, <d> drop. Top drop reasons: <...>. Enriching <q+u> people next will cost up to <q+u> credits."
 

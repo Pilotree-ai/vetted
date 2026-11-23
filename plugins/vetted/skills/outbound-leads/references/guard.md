@@ -2,7 +2,7 @@
 
 Bounces and spam blocks hurt the whole sending domain, not just one sequence, and the damage grows with volume. Apollo pauses a sequence on its own only after 200 sends in 7 days, which small Vetted batches rarely reach. The guard fills that gap. It runs with the reply check (every two hours on weekdays) and acts on its own, because waiting hours for a person while a bad sequence keeps sending is the larger risk. Every action is reversible, every action is announced in the approval channel, and anything that would start sending again needs a person's ✅.
 
-Read this file at the end of every reply check (`replies.md` section 5), before every load (`apollo-load.md` step 1), and when the user asks about spam, bounces or deliverability.
+Read this file during a reply check when `quick-check.md` flags a problem (or at `replies.md` section 5 in a full check), before every load (`apollo-load.md` step 1), and when the user asks about spam, bounces or deliverability.
 
 ## What counts as a problem
 

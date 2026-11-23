@@ -84,14 +84,35 @@ h1 { font-size: 26px; letter-spacing: -.02em; line-height: 1.2; }
 
 /* Headline figures */
 .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
-.figures > div { padding: 14px 16px; display: grid; gap: 2px; border-left: 1px solid var(--line); min-width: 0; }
+.figures > div { padding: 14px 16px; display: grid; gap: 2px; align-content: start; border-left: 1px solid var(--line); min-width: 0; }
 .figures > div:first-child { border-left: 0; }
 .figures .v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 500; letter-spacing: -.02em; }
 .figures .v small { font-size: 14px; color: var(--muted); font-weight: 400; }
 .figures .k { font-size: 12px; color: var(--muted); }
-.figures .s { font-size: 11.5px; color: var(--muted); font-family: var(--font-data); }
+.figures .s { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .figures .hl .v { color: var(--info); }
 .figures .hl.full .v { color: var(--bad); }
+.figures .warn .v { color: var(--warn); }
+
+/* Today: the daily limit, what's gone out, and each mailbox */
+.today-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.today-top > div { padding: 16px; display: grid; gap: 2px; border-left: 1px solid var(--line); min-width: 0; }
+.today-top > div:first-child { border-left: 0; }
+.today-top .v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 500; letter-spacing: -.02em; line-height: 1.15; }
+.today-top .k { font-size: 13px; font-weight: 500; }
+.today-top .s { font-size: 12.5px; color: var(--muted); }
+.today-boxes { display: grid; gap: 12px; padding: 14px 16px 16px; border-top: 1px solid var(--line); }
+.today-boxes:empty { display: none; }
+.mbox { display: grid; grid-template-columns: minmax(0, 220px) minmax(80px, 1fr) minmax(0, auto); gap: 6px 14px; align-items: center; }
+.mbox .who b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.mbox .who span { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.mbox .rbar { height: 10px; border-radius: 5px; }
+.mbox .rbar i { border-radius: 5px; background: var(--info); }
+.mbox .sval { font-size: 13px; color: var(--ink); }
+.mbox .sval span { color: var(--muted); }
+@media (max-width: 560px) { .mbox { grid-template-columns: minmax(0, 1fr); } .mbox .sval { text-align: left; } }
+.so-far { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; margin-bottom: -10px; }
+.so-far h2 { font-size: 15px; }
 
 /* Panels */
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; }
@@ -236,11 +257,19 @@ footer p { margin: 0; max-width: 90ch; }
     </div>
   </header>
 
-  <div class="chips" id="senders" role="toolbar" aria-label="Sender mailbox" hidden></div>
+  <section class="panel today" aria-labelledby="today-h">
+    <div class="panel-h"><h2 id="today-h">Today</h2><span class="note" id="today-note"></span></div>
+    <div class="today-top" id="today-top"></div>
+    <div class="today-boxes" id="today-boxes"></div>
+  </section>
 
   <div class="alert" id="alert" hidden><span class="diamond" aria-hidden="true">◆</span><div id="alert-text"></div></div>
 
-  <section class="figures" id="figures" aria-label="Totals"></section>
+  <div class="so-far">
+    <h2 id="sofar-h">So far</h2>
+    <div class="chips" id="senders" role="toolbar" aria-label="Show mailbox" hidden></div>
+  </div>
+  <section class="figures" id="figures" aria-labelledby="sofar-h"></section>
 
   <section class="panel" aria-labelledby="v-h">
     <div class="panel-h">
@@ -360,7 +389,7 @@ footer p { margin: 0; max-width: 90ch; }
   </section>
 
   <footer>
-    <p><b>Queued</b> is the emails Apollo has scheduled now: one per active contact, their next step. <b>Delivered</b>, <b>Bounced</b> and <b>Replied</b> count emails. <b>People emailed</b> is how many got the first email. <b>Reply rate</b> is replies divided by people emailed. <b>Slots left</b> is the mailbox's daily limit from Apollo, minus what it has sent today and what the live sequences will send.</p>
+    <p><b>Queued</b> is the emails Apollo has scheduled now: one per active contact, their next step. <b>Delivered</b>, <b>Bounced</b> and <b>Replied</b> count emails. <b>People contacted</b> is how many got the first email. <b>Emails delivered</b> counts every email that arrived, follow-ups included, so it is higher: one person can get up to 4. <b>Reply rate</b> is replies divided by people contacted. <b>Slots left</b> is the mailbox's daily limit from Apollo, minus what it has sent today and what the live sequences will send.</p>
     <p>A <b>campaign</b> groups the batches of one offer by sequence name ("UK agencies - US batch 2" belongs to "UK agencies"). Daily activity comes from Apollo's analytics, one record per day.</p>
     <p>The forecast is an estimate. It assumes follow-ups go out on their step day (weekdays only), each sequence stays within its own cap, and the mailbox never sends more than its daily limit. Anything over the limit waits for the next day. Refreshed from Apollo every morning by the outbound-leads skill. Anyone who can edit this page can also refresh it with Refresh from Apollo, which only reads from Apollo, using their own Apollo connection.</p>
   </footer>
@@ -527,11 +556,27 @@ footer p { margin: 0; max-width: 90ch; }
     var list = Array.isArray(d.senders) ? d.senders.filter(function (s) { return s && typeof s === "object"; }) : [];
     return list.length ? list : [{ name: "", mailbox: "", user_id: "", daily_limit: 150 }];
   }
-  function currentSender() { var s = senders(); return s[Math.min(state.sender, s.length - 1)]; }
+  // With two or more mailboxes the first view is all of them together: the limits and
+  // today's sends add up, and every sequence counts.
+  function views() {
+    var s = senders(); if (s.length < 2) return s;
+    var all = { all: true, name: "All mailboxes", mailbox: "", user_id: "", count: s.length,
+      daily_limit: s.reduce(function (a, x) { return a + (num(x.daily_limit) || 150); }, 0),
+      sent_today: s.reduce(function (a, x) { return a + n0(x.sent_today); }, 0) };
+    return [all].concat(s);
+  }
+  function currentSender() { var v = views(); return v[Math.min(state.sender, v.length - 1)]; }
+  // A sequence belongs to the mailbox it sends from. Several mailboxes can share one
+  // Apollo user, so the owner is only the fallback for a sequence with no mailbox yet.
   function sequencesFor(sender) {
     var all = Array.isArray((state.doc || {}).sequences) ? state.doc.sequences.filter(function (s) { return s && typeof s === "object" && !s.archived; }) : [];
-    if (senders().length < 2 || !str(sender.user_id)) return all;
-    return all.filter(function (s) { return str(s.owner_user_id) === str(sender.user_id); });
+    if (sender.all || senders().length < 2) return all;
+    var mb = str(sender.mailbox).toLowerCase();
+    return all.filter(function (s) {
+      var sm = str(s.mailbox).toLowerCase();
+      if (sm) return sm === mb;
+      return !str(sender.user_id) || str(s.owner_user_id) === str(sender.user_id);
+    });
   }
   function followDays(s) {
     var steps = Array.isArray(s.steps) ? s.steps.slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); }) : [];
@@ -607,10 +652,12 @@ footer p { margin: 0; max-width: 90ch; }
   function render() {
     var doc = state.doc; if (!doc) return;
     var c = state.calc = compute();
+    renderToday();
     renderSenders();
     var meta = $("meta"); meta.textContent = "";
     function m(k, v) { if (!v) return; var sp = el("span", "", k + " "); sp.appendChild(el("b", "", v)); meta.appendChild(sp); }
-    m("Mailbox", [str(c.sender.name), str(c.sender.mailbox)].filter(Boolean).join(" · "));
+    if (c.sender.all) m("Mailboxes", senders().map(function (x) { return str(x.mailbox) || str(x.name); }).filter(Boolean).join(" · "));
+    else m("Mailbox", [str(c.sender.name), str(c.sender.mailbox)].filter(Boolean).join(" · "));
     m("Time zone", c.tz);
     if (!meta.childNodes.length) meta.appendChild(el("span", "", "Apollo workspace"));
 
@@ -625,14 +672,14 @@ footer p { margin: 0; max-width: 90ch; }
     var firstFree = -1; for (var j = 0; j < c.days.length; j++) if (c.limit - c.used[j] > 0) { firstFree = j; break; }
 
     var maxSeq = num(doc.max_active_sequences);
+    var perPerson = reached ? (delivered / reached).toFixed(1) : "";
     var cells = [
-      ["Sequences", fmt(c.seqs.length), fmt(active.length) + " active" + (maxSeq ? " of " + fmt(maxSeq) + " allowed" : ""), ""],
-      ["Daily limit", fmt(c.limit), "per mailbox · caps add to " + fmt(capSum), ""],
-      ["Slots left " + dayLabel(c.days[0], c.todayKey).toLowerCase(), fmt(slots0), fmt(freeWeek) + " free over 5 days", slots0 ? "hl" : "hl full"],
-      ["Queued", fmt(queued), "across " + fmt(c.seqs.filter(function (s) { return n0((s.emails || {}).queued); }).length) + " sequences", ""],
-      ["Delivered", fmt(delivered), reached ? fmt(reached) + " people emailed" : "", ""],
-      ["Replied", fmt(replied), (reached ? pct(replied, reached) + " of people emailed" : "") + (interestedTotal(c.seqs) ? " · " + fmt(interestedTotal(c.seqs)) + " interested" : ""), ""],
-      ["Bounced", fmt(bounced), (sent ? pct(bounced, sent) + " of sent" : "–") + (spam ? " · " + fmt(spam) + " spam blocked" : ""), ""]
+      ["People contacted", fmt(reached), "got our first email", ""],
+      ["Emails delivered", fmt(delivered), "first emails and follow-ups" + (perPerson ? ", about " + perPerson + " per person" : ""), ""],
+      ["Replies", fmt(replied), (reached ? pct(replied, reached) + " of people contacted" : "") + (interestedTotal(c.seqs) ? " · " + fmt(interestedTotal(c.seqs)) + " interested" : ""), ""],
+      ["Bounced", fmt(bounced), "didn't arrive" + (sent ? ", " + pct(bounced, sent) + " of sent" : "") + (spam ? " · " + fmt(spam) + " blocked as spam" : ""), bounced && sent && bounced / sent >= 0.03 ? "warn" : ""],
+      ["Waiting to send", fmt(queued), "emails lined up in Apollo", ""],
+      ["Sequences running", fmt(active.length), "of " + fmt(c.seqs.length) + (maxSeq ? " · " + fmt(maxSeq) + " allowed" : ""), ""]
     ];
     var f = $("figures"); f.textContent = "";
     cells.forEach(function (x) {
@@ -886,10 +933,17 @@ footer p { margin: 0; max-width: 90ch; }
     if (camp && camp.seqs > 1) notes.push("campaign: " + fmt(camp.replied) + " repl" + (camp.replied === 1 ? "y" : "ies") + " from " + fmt(camp.reached) + " people across " + fmt(camp.seqs) + " batches");
     return { key: v, why: why, todo: todo, notes: notes, n: n, replied: replied };
   }
+  // An Apollo warning every switched-on sequence carries is an account setting, shown once.
+  // Sequences that are off (or empty) carry no diagnostics, so they don't count.
+  function sharedIssues(seqs) {
+    var on = seqs.filter(function (s) { return s.active; });
+    if (on.length < 2) return [];
+    return (Array.isArray(on[0].issues) ? on[0].issues : []).filter(function (code) {
+      return code !== "sequence_inactive" && on.every(function (s) { return Array.isArray(s.issues) && s.issues.indexOf(code) !== -1; });
+    });
+  }
   function verdictCtx(seqs) {
-    var shared = seqs.length > 1 ? (Array.isArray(seqs[0].issues) ? seqs[0].issues : []).filter(function (code) {
-      return seqs.every(function (s) { return Array.isArray(s.issues) && s.issues.indexOf(code) !== -1; });
-    }) : [];
+    var shared = sharedIssues(seqs);
     var camps = {}; campaignRows(seqs).forEach(function (g) { camps[g.name] = g; });
     return { tz: state.calc ? state.calc.tz : "Europe/London", shared: shared, camps: camps };
   }
@@ -1255,8 +1309,38 @@ footer p { margin: 0; max-width: 90ch; }
       (peak && n0(peak.sent) ? " · busiest " + parseKey(peak.date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) + " (" + fmt(peak.sent) + ")" : "");
   }
 
+  // Today, in plain words: how many emails can go out a day, how many went out today,
+  // and the same for each mailbox. Always every mailbox, whichever view is picked below.
+  function renderToday() {
+    var doc = state.doc || {}, tz = str(doc.timezone) || "Europe/London", list = senders();
+    var limit = list.reduce(function (a, x) { return a + (num(x.daily_limit) || 150); }, 0);
+    var sent = list.reduce(function (a, x) { return a + n0(x.sent_today); }, 0);
+    var isToday = localKey(doc.updated_at, tz) === localKey(new Date().toISOString(), tz);
+    var t = Date.parse(str(doc.updated_at));
+    $("today-note").textContent = t ? (isToday ? "As of " : "Last checked ") + new Date(t).toLocaleString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", day: isToday ? undefined : "numeric", month: isToday ? undefined : "short" }) : "";
+    var top = $("today-top"); top.textContent = "";
+    function cell(v, k, s) { var d = el("div"); d.appendChild(el("span", "v", v)); d.appendChild(el("span", "k", k)); d.appendChild(el("span", "s", s)); top.appendChild(d); }
+    var each = list.every(function (x) { return (num(x.daily_limit) || 150) === (num(list[0].daily_limit) || 150); });
+    cell(fmt(limit), "Daily limit", list.length > 1
+      ? "the most we can send in a day: " + fmt(list.length) + " mailboxes" + (each ? ", " + fmt(num(list[0].daily_limit) || 150) + " each" : " together")
+      : "the most this mailbox can send in a day");
+    cell(fmt(sent), "Emails sent today", isToday ? fmt(Math.max(0, limit - sent)) + " more can still go out today" : "no refresh yet today");
+    var box = $("today-boxes"); box.textContent = "";
+    if (list.length < 2) return;
+    list.forEach(function (x) {
+      var lim = num(x.daily_limit) || 150, s = n0(x.sent_today), row = el("div", "mbox"), who = el("div", "who");
+      who.appendChild(el("b", "", str(x.name) || str(x.mailbox) || "Mailbox"));
+      if (str(x.name) && str(x.mailbox)) who.appendChild(el("span", "", x.mailbox));
+      row.appendChild(who);
+      row.appendChild(rateBar(s, lim, ""));
+      var v = el("div", "sval", fmt(s) + " sent today ");
+      v.appendChild(el("span", "", "of " + fmt(lim) + " · " + fmt(Math.max(0, lim - s)) + " left"));
+      row.appendChild(v); box.appendChild(row);
+    });
+  }
+
   function renderSenders() {
-    var s = senders(), box = $("senders");
+    var s = views(), box = $("senders");
     box.hidden = s.length < 2; box.textContent = "";
     if (s.length < 2) return;
     s.forEach(function (x, i) {
@@ -1403,9 +1487,7 @@ footer p { margin: 0; max-width: 90ch; }
       return String(b.created_at || "").localeCompare(String(a.created_at || ""));
     });
     // An Apollo warning that every sequence shares is shown once above the table, not on each row.
-    var shared = c.seqs.length > 1 ? (Array.isArray(c.seqs[0].issues) ? c.seqs[0].issues : []).filter(function (code) {
-      return code !== "sequence_inactive" && c.seqs.every(function (s) { return Array.isArray(s.issues) && s.issues.indexOf(code) !== -1; });
-    }) : [];
+    var shared = sharedIssues(c.seqs);
     var sn = $("seq-shared"); sn.hidden = !shared.length;
     sn.textContent = shared.length ? "Apollo flags every sequence: " + shared.map(function (code) { return ISSUES[code] || code; }).join("; ") + "." : "";
     var t = $("seq-table"); t.textContent = "";
@@ -1560,7 +1642,7 @@ footer p { margin: 0; max-width: 90ch; }
       if (!seqs.length && (prev.sequences || []).length) throw { code: "empty" };
 
       var counts = {}, shows = {}, done = 0;
-      var total = seqs.length + seqs.filter(function (c) { return c.active; }).length + 5;
+      var total = seqs.length + seqs.filter(function (c) { return c.active; }).length + 4 + Math.ceil(seqs.length / 10);
       function step(label) { done++; setRefreshUI("busy", label + " (" + done + " of " + total + ")"); }
       await pool(seqs, 4, async function (c) {
         var m = await apollo(mcp, "apollo_emailer_messages_search", { emailer_campaign_id: c.id, display_mode: "metadata_mode" });
@@ -1569,12 +1651,26 @@ footer p { margin: 0; max-width: 90ch; }
         if (c.active) { shows[c.id] = await apollo(mcp, "apollo_emailer_campaigns_show", { id: c.id }); step("Reading sequences"); }
       });
 
-      var byStep = mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "all_time" }, group_by: ["emailer_step_id"],
-        metrics: ["num_emails_sent", "num_emails_replied", "num_emails_bounced"] })).summary);
-      step("Reading replies by step");
+      // Apollo's reports stop at 50 rows, so ask for 10 sequences at a time (up to 40 step rows).
+      var byStep = [], byMailbox = [];
+      for (var ci = 0; ci < seqs.length; ci += 10) {
+        var ids = seqs.slice(ci, ci + 10).map(function (c) { return c.id; });
+        byStep = byStep.concat(mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "all_time" }, group_by: ["emailer_step_id"],
+          filters: { emailer_campaign_ids: ids }, metrics: ["num_emails_sent", "num_emails_replied", "num_emails_bounced"] })).summary));
+        byMailbox = byMailbox.concat(mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "all_time" }, group_by: ["emailer_campaign_id"],
+          pivot_group_by: ["email_account_id"], filters: { emailer_campaign_ids: ids }, metrics: ["num_emails_sent"] })).summary));
+        step("Reading replies by step");
+      }
       var todayRows = mdRows((await apollo(mcp, "apollo_analytics_sync_report", { date_range: { modality: "today" }, group_by: ["email_account_id"],
         metrics: ["email_daily_limit", "num_emails_sent"] })).summary);
       step("Reading today's sends");
+      // Which mailbox each sequence sends from: the one with most of its sends.
+      var mailboxOf = {};
+      byMailbox.forEach(function (r) {
+        var best = "", most = 0;
+        Object.keys(r).forEach(function (k) { if (k !== "label" && k.indexOf("@") > 0 && toNum(r[k]) > most) { most = toNum(r[k]); best = k; } });
+        if (best) mailboxOf[r.label] = best;
+      });
       var hr = historyRows(), firstKey = seqs.map(function (c) { return localKey(c.created_at, tz); }).filter(Boolean).sort()[0] || todayKey;
       var start = hr.length ? addDays(hr[hr.length - 1].date, -1) : firstKey;
       if (start > todayKey) start = todayKey;
@@ -1612,6 +1708,30 @@ footer p { margin: 0; max-width: 90ch; }
         var i = r.label.lastIndexOf(": Step "); if (i < 0) return;
         stepMap[r.label.slice(0, i) + "#" + parseInt(r.label.slice(i + 7), 10)] = { sent: toNum(r["num emails sent"]), replied: toNum(r["num emails replied"]), bounced: toNum(r["num emails bounced"]) };
       });
+      // Senders: the ones already on the page plus any active mailbox Apollo now lists.
+      var today = {}; todayRows.forEach(function (r) { today[String(r.label).toLowerCase()] = { limit: toNum(r["email daily limit"]), sent: toNum(r["num emails sent"]) }; });
+      var senderList = (Array.isArray(prev.senders) ? prev.senders : []).filter(function (s) { return s && typeof s === "object"; });
+      accounts.forEach(function (a) {
+        var em = str(a && a.email).toLowerCase();
+        if (!em || a.active === false || senderList.some(function (s) { return str(s.mailbox).toLowerCase() === em; })) return;
+        var local = em.split("@")[0].split(/[._-]/)[0];
+        senderList.push({ name: local.charAt(0).toUpperCase() + local.slice(1), mailbox: a.email, user_id: str(a.user_id) });
+      });
+      var senders = (senderList.length ? senderList : [{}]).map(function (s) {
+        var o = Object.assign({}, s), mb = str(s.mailbox).toLowerCase();
+        var acc = accounts.filter(function (a) { return str(a.email).toLowerCase() === mb; })[0];
+        if (acc && acc.user_id) o.user_id = acc.user_id;
+        var t = today[mb]; if (t && t.limit) { o.daily_limit = t.limit; o.limit_source = "apollo"; }
+        o.sent_today = t ? t.sent : 0;
+        return o;
+      });
+      // A sequence that hasn't sent yet: its name's "- <sender>" ending, else the last known mailbox.
+      function mailboxFor(c, old) {
+        var m = mailboxOf[str(c.name)]; if (m) return m;
+        var mm = / - ([^-]+)$/.exec(str(c.name)), who = mm ? mm[1].trim().toLowerCase() : "";
+        var byName = who && senders.filter(function (s) { return str(s.name).toLowerCase() === who && str(s.mailbox); })[0];
+        return byName ? str(byName.mailbox).toLowerCase() : str(old.mailbox);
+      }
       var prevById = {}; (prev.sequences || []).forEach(function (s) { if (s && s.id) prevById[s.id] = s; });
       var ap = null, queuedTotal = 0;
       var outSeqs = seqs.map(function (c) {
@@ -1637,15 +1757,7 @@ footer p { margin: 0; max-width: 90ch; }
           dashboard_url: str(old.dashboard_url)
         };
         if (str(old.campaign)) o.campaign = old.campaign;
-        return o;
-      });
-      var today = {}; todayRows.forEach(function (r) { today[String(r.label).toLowerCase()] = { limit: toNum(r["email daily limit"]), sent: toNum(r["num emails sent"]) }; });
-      var senders = (Array.isArray(prev.senders) && prev.senders.length ? prev.senders : [{}]).map(function (s) {
-        var o = Object.assign({}, s), mb = str(s.mailbox).toLowerCase();
-        var acc = accounts.filter(function (a) { return str(a.email).toLowerCase() === mb; })[0];
-        if (acc && acc.user_id) o.user_id = acc.user_id;
-        var t = today[mb]; if (t && t.limit) { o.daily_limit = t.limit; o.limit_source = "apollo"; }
-        o.sent_today = t ? t.sent : 0;
+        var mbx = mailboxFor(c, old); if (mbx) o.mailbox = mbx;
         return o;
       });
       var doc = Object.assign({}, prev, {
